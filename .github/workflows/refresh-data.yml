@@ -54,6 +54,10 @@ jobs:
         id: dopa
         continue-on-error: true
         run: python etl/th_dopa.py --allow-unreachable   # yearly; unreachable from overseas runners (see the script)
+      - name: "Vietnam: National Statistics Office"
+        id: vn
+        continue-on-error: true
+        run: python etl/vn_gso.py
       - name: "Region: World Bank"
         id: wb
         continue-on-error: true
@@ -75,6 +79,7 @@ jobs:
             echo "| Bank of Thailand | ${{ steps.bot.outcome }} |"
             echo "| Social Security Office | ${{ steps.sso.outcome }} |"
             echo "| DOPA | ${{ steps.dopa.outcome }} |"
+            echo "| Vietnam NSO | ${{ steps.vn.outcome }} |"
             echo "| World Bank | ${{ steps.wb.outcome }} |"
             echo
             echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -115,7 +120,7 @@ jobs:
           fi
 
       - name: Report failed sources
-        if: steps.bot.outcome == 'failure' || steps.sso.outcome == 'failure' || steps.dopa.outcome == 'failure' || steps.wb.outcome == 'failure'
+        if: steps.bot.outcome == 'failure' || steps.sso.outcome == 'failure' || steps.dopa.outcome == 'failure' || steps.vn.outcome == 'failure' || steps.wb.outcome == 'failure'
         run: |
           gh label create source-failed --color d93f0b --description "A data source failed in the monthly refresh" 2>/dev/null || true
           title="Data refresh: a source failed"

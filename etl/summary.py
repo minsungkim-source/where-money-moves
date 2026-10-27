@@ -38,7 +38,7 @@ def new(name: str):
     return json.loads(p.read_text()) if p.exists() else None
 
 
-FILES = ["meta.json", "districts.json", "provinces.json", "th_sso.json", "th_dopa.json", "sea_wb.json"]
+FILES = ["meta.json", "districts.json", "provinces.json", "th_sso.json", "th_dopa.json", "sea_wb.json", "vn_gso.json"]
 
 
 def strip_stamps(x):
@@ -139,6 +139,18 @@ def main() -> int:
         lines.append("### People — DOPA registered population, provinces\n")
         lines.append(f"- Years: {p0['years'][-1] if p0 else '–'} → **{ys[-1]}** (December)")
         lines.append(f"- Registered population: {tot(ys[-1]):,} ({pct(tot(ys[-1]) / tot(ys[-2]) - 1)})")
+        lines.append("")
+
+    # ── Vietnam NSO
+    v0, v1 = old("vn_gso.json", args.base), new("vn_gso.json")
+    if v1:
+        lines.append("### Vietnam — National Statistics Office, 34 provinces\n")
+        for key, label in (("pop", "Population"), ("employed", "Employed"), ("new_firms", "New enterprises"), ("revenue", "Enterprise revenue")):
+            last = lambda d: max((int(y) for p in d["provinces"].values() for y in p["series"][key]), default=None) if d else None
+            tot = lambda d, y: sum(p["series"][key].get(str(y), 0) for p in d["provinces"].values())
+            y1 = last(v1)
+            pre = " (preliminary)" if y1 in v1["preliminary"].get(key, []) else ""
+            lines.append(f"- {label}: latest year {last(v0) or '–'} → **{y1}**{pre}, national {pct(tot(v1, y1) / tot(v1, y1 - 1) - 1)}")
         lines.append("")
 
     # ── World Bank (region)

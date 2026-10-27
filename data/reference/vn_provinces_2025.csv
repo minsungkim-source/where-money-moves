@@ -1,0 +1,75 @@
+# Vietnam 2025 provincial merger: 63 provinces → 34 (National Assembly Resolution 202/2025/QH15, in force 12 June 2025;
+# new provincial governments from 1 July 2025). Every merger joined whole provinces, so old-province statistics add up
+# exactly into the new ones.
+#
+# Verified 2026-10-27 against Wikipedia "First-level subdivisions of Vietnam" (Historical provinces: 29 provinces
+# "dissolved 2025 / merged with …", plus Thừa Thiên Huế converted to Huế city) — every row below matches.
+#
+# gso_name = the province label in the NSO (formerly GSO) PX-Web tables, which still publish the 63 old provinces.
+#            Alternates are separated by "|" (population tables say Huế, enterprise tables still say Thừa Thiên Huế).
+# gb_name  = shapeName in geoBoundaries gbHumanitarian VNM ADM1 (2020, 63 provinces).
+# Both are matched exactly after folding diacritics; nothing is fuzzy-matched.
+new_slug,new_name_en,new_name_vi,gso_name,gb_name
+hanoi,Hanoi,Hà Nội,Hà Nội,Ha Noi
+hue,Hue,Huế,Huế|Thừa Thiên Huế,Thua Thien Hue
+lai-chau,Lai Chau,Lai Châu,Lai Châu,Lai Chau
+dien-bien,Dien Bien,Điện Biên,Điện Biên,Dien Bien
+son-la,Son La,Sơn La,Sơn La,Son La
+lang-son,Lang Son,Lạng Sơn,Lạng Sơn,Lang Son
+quang-ninh,Quang Ninh,Quảng Ninh,Quảng Ninh,Quang Ninh
+thanh-hoa,Thanh Hoa,Thanh Hóa,Thanh Hóa,Thanh Hoa
+nghe-an,Nghe An,Nghệ An,Nghệ An,Nghe An
+ha-tinh,Ha Tinh,Hà Tĩnh,Hà Tĩnh,Ha Tinh
+cao-bang,Cao Bang,Cao Bằng,Cao Bằng,Cao Bang
+tuyen-quang,Tuyen Quang,Tuyên Quang,Tuyên Quang,Tuyen Quang
+tuyen-quang,Tuyen Quang,Tuyên Quang,Hà Giang,Ha Giang
+lao-cai,Lao Cai,Lào Cai,Lào Cai,Lao Cai
+lao-cai,Lao Cai,Lào Cai,Yên Bái,Yen Bai
+thai-nguyen,Thai Nguyen,Thái Nguyên,Thái Nguyên,Thai Nguyen
+thai-nguyen,Thai Nguyen,Thái Nguyên,Bắc Kạn,Bac Kan
+phu-tho,Phu Tho,Phú Thọ,Phú Thọ,Phu Tho
+phu-tho,Phu Tho,Phú Thọ,Vĩnh Phúc,Vinh Phuc
+phu-tho,Phu Tho,Phú Thọ,Hòa Bình,Hoa Binh
+bac-ninh,Bac Ninh,Bắc Ninh,Bắc Ninh,Bac Ninh
+bac-ninh,Bac Ninh,Bắc Ninh,Bắc Giang,Bac Giang
+hung-yen,Hung Yen,Hưng Yên,Hưng Yên,Hung Yen
+hung-yen,Hung Yen,Hưng Yên,Thái Bình,Thai Binh
+haiphong,Haiphong,Hải Phòng,Hải Phòng,Hai Phong city
+haiphong,Haiphong,Hải Phòng,Hải Dương,Hai Duong
+ninh-binh,Ninh Binh,Ninh Bình,Ninh Bình,Ninh Binh
+ninh-binh,Ninh Binh,Ninh Bình,Hà Nam,Ha Nam
+ninh-binh,Ninh Binh,Ninh Bình,Nam Định,Nam Dinh
+quang-tri,Quang Tri,Quảng Trị,Quảng Trị,Quang Tri
+quang-tri,Quang Tri,Quảng Trị,Quảng Bình,Quang Binh
+da-nang,Da Nang,Đà Nẵng,Đà Nẵng,Da Nang city
+da-nang,Da Nang,Đà Nẵng,Quảng Nam,Quang Nam
+quang-ngai,Quang Ngai,Quảng Ngãi,Quảng Ngãi,Quang Ngai
+quang-ngai,Quang Ngai,Quảng Ngãi,Kon Tum,Kon Tum
+gia-lai,Gia Lai,Gia Lai,Gia Lai,Gia Lai
+gia-lai,Gia Lai,Gia Lai,Bình Định,Binh Dinh
+khanh-hoa,Khanh Hoa,Khánh Hòa,Khánh Hòa,Khanh Hoa
+khanh-hoa,Khanh Hoa,Khánh Hòa,Ninh Thuận,Ninh Thuan
+lam-dong,Lam Dong,Lâm Đồng,Lâm Đồng,Lam Dong
+lam-dong,Lam Dong,Lâm Đồng,Đắk Nông,Dak Nong
+lam-dong,Lam Dong,Lâm Đồng,Bình Thuận,Binh Thuan
+dak-lak,Dak Lak,Đắk Lắk,Đắk Lắk,Dak Lak
+dak-lak,Dak Lak,Đắk Lắk,Phú Yên,Phu Yen
+ho-chi-minh-city,Ho Chi Minh City,Thành phố Hồ Chí Minh,TP. Hồ Chí Minh,Ho Chi Minh city
+ho-chi-minh-city,Ho Chi Minh City,Thành phố Hồ Chí Minh,Bình Dương,Binh Duong
+ho-chi-minh-city,Ho Chi Minh City,Thành phố Hồ Chí Minh,Bà Rịa - Vũng Tàu,Ba Ria - Vung Tau
+dong-nai,Dong Nai,Đồng Nai,Đồng Nai,Dong Nai
+dong-nai,Dong Nai,Đồng Nai,Bình Phước,Binh Phuoc
+tay-ninh,Tay Ninh,Tây Ninh,Tây Ninh,Tay Ninh
+tay-ninh,Tay Ninh,Tây Ninh,Long An,Long An
+can-tho,Can Tho,Cần Thơ,Cần Thơ,Can Tho city
+can-tho,Can Tho,Cần Thơ,Sóc Trăng,Soc Trang
+can-tho,Can Tho,Cần Thơ,Hậu Giang,Hau Giang
+vinh-long,Vinh Long,Vĩnh Long,Vĩnh Long,Vinh Long
+vinh-long,Vinh Long,Vĩnh Long,Bến Tre,Ben Tre
+vinh-long,Vinh Long,Vĩnh Long,Trà Vinh,Tra Vinh
+dong-thap,Dong Thap,Đồng Tháp,Đồng Tháp,Dong Thap
+dong-thap,Dong Thap,Đồng Tháp,Tiền Giang,Tien Giang
+ca-mau,Ca Mau,Cà Mau,Cà Mau,Ca Mau
+ca-mau,Ca Mau,Cà Mau,Bạc Liêu,Bac Lieu
+an-giang,An Giang,An Giang,An Giang,An Giang
+an-giang,An Giang,An Giang,Kiên Giang,Kien Giang

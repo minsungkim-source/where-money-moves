@@ -122,6 +122,13 @@ main > * { min-width: 0; }
 }
 .map .hb { fill: var(--null); } .map .hl { stroke: var(--null-line); stroke-width: 1.1; }
 .map.mini { width: 96px; height: 172px; }
+/* Vietnam: merged provinces are several old shapes in one path, so fills carry no stroke; borders are their own layers */
+.map.vn .units path { stroke: none; }
+.map.vn .units a:hover path, .map.vn .units a:focus-visible path, .map.vn .units a.cur path { stroke: none; filter: brightness(.86) saturate(1.2); }
+.map.vn .outline { fill: none; stroke: var(--paper); stroke-width: .9; stroke-linejoin: round; pointer-events: none; }
+.map.vn .former { fill: none; stroke: var(--paper); stroke-width: .7; stroke-dasharray: 2 2.4; opacity: .9; pointer-events: none; }
+.map.mini.vn { width: 86px; }
+.mapframe .map.vn { max-height: 80vh; width: auto; max-width: 100%; margin: 0 auto; }   /* the country is tall and thin */
 .map.mini path { fill: var(--line); stroke: var(--paper); stroke-width: .8; }
 .map.mini path.on { fill: var(--current); }
 .map.mini circle { fill: var(--paper); stroke: var(--ink); stroke-width: .8; }

@@ -6,18 +6,20 @@ A static, English-only data site. Native place names (ชลบุรี, Việt
 
 - **Region**: 11 countries (ASEAN + Timor-Leste), ranked on four lenses with World Bank indicators
 - **Thailand**: 77 provinces on all four lenses, 264 districts on monthly bank money
+- **Vietnam**: 34 provinces (2025 boundaries) on all four lenses, rebuilt from the 63 former provinces
 - 366 pages, each complete without JavaScript (search engines, slow phones). JS adds the interactive layer.
 
 ## The four lenses
 
-| Lens | Countries (World Bank) | Thai provinces | Thai districts |
-|---|---|---|---|
-| People | urban population growth `SP.URB.TOTL` | registered population, DOPA stat.bora (Dec, yearly) | – |
-| Jobs | employed = labour force × (1 − unemployment) | Section 33 insured employees, SSO (Dec, yearly) | – |
-| Businesses | new LLC registrations `IC.BUS.NREG` | employers registered with SSO (**proxy**) | – |
-| Money | real GDP `NY.GDP.MKTP.KD` | bank deposits + credit, BOT (monthly) | bank deposits + credit, BOT |
+| Lens | Countries (World Bank) | Thai provinces | Thai districts | Vietnamese provinces (NSO) |
+|---|---|---|---|---|
+| People | urban population growth `SP.URB.TOTL` | registered population, DOPA stat.bora (Dec, yearly) | – | average population `V02.03-07` + net migration `V02.21-23` |
+| Jobs | employed = labour force × (1 − unemployment) | Section 33 insured employees, SSO (Dec, yearly) | – | employed workers `V02.45` |
+| Businesses | new LLC registrations `IC.BUS.NREG` | employers registered with SSO (**proxy**) | – | newly registered enterprises `V05.02` |
+| Money | real GDP `NY.GDP.MKTP.KD` | bank deposits + credit, BOT (monthly) | bank deposits + credit, BOT | enterprise net revenue `V05.23` (nominal) |
 
-**Momentum score** is the mean of per-lens percentile ranks *within a layer*: 11 countries, 77 provinces or 234 districts.
+**Momentum score** is the mean of per-lens percentile ranks *within a layer*: 11 countries, 77 Thai provinces,
+234 Thai districts or 34 Vietnamese provinces.
 Layers are never mixed on one axis, because national definitions differ.
 
 ### Proxies (where open data has a gap)
@@ -34,6 +36,8 @@ Layers are never mixed on one axis, because national definitions differ.
 etl/etl.py      BOT district deposits/credit/branches (zip, 2023-01 → latest)  → data/processed/{meta,districts,provinces}.json
 etl/th_sso.py   SSO enterprises + insured by province (xlsx per year)           → data/processed/th_sso.json
 etl/th_dopa.py  DOPA registered population by province (stat.bora text files)    → data/processed/th_dopa.json
+etl/vn_gso.py   Vietnam NSO PX-Web, 63 old provinces → 34 new                  → data/processed/vn_gso.json
+etl/vn_geo.py   geoBoundaries VNM ADM1 TopoJSON, merged by shared arcs          → data/reference/vn.geo.json
 etl/sea_wb.py   World Bank WDI, 11 countries                                    → data/processed/sea_wb.json
 etl/sea_geo.py  Natural Earth 1:50m outlines                                    → data/reference/sea.geo.json
 ```
@@ -42,6 +46,9 @@ Each source has a structure fingerprint and a total cross-check, and stops rathe
 
 - **BOT**: two sheet layouts, revised beats preliminary, deposit and credit parts sum to totals, masked `n.a.` cells
 - **SSO**: the December title matches the year, exactly 77 provinces, and they sum to "Whole Kingdom"
+- **Vietnam**: the 63 provinces must be found by exact (diacritic-folded) name in every table, and must add up to the
+  national total every year from 2010 (Hà Tây was separate before 2008). Crosswalk: `data/reference/vn_provinces_2025.csv`,
+  verified against the 2025 merger list
 - **DOPA**: the year page must list 77 provinces, male + female = total in every file; 2020–2024 match the old catalog exactly
 
 ```bash
@@ -102,5 +109,5 @@ Live on **GitHub Pages**: <https://minsungkim-source.github.io/where-money-moves
 ## Licences
 
 Code: MIT. Data: World Bank WDI (CC BY 4.0); Bank of Thailand (attribution, aggregate publication);
-SSO and DOPA (Open Data Common); Natural Earth (public domain); geoBoundaries/OCHA (CC BY 3.0 IGO);
+SSO and DOPA (Open Data Common); National Statistics Office of Viet Nam (attribution); Natural Earth (public domain); geoBoundaries/OCHA and Government of Viet Nam via HDX (CC BY 3.0 IGO);
 thailand-canonical-admin-names (CC BY 4.0).

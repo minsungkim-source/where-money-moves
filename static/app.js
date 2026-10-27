@@ -252,7 +252,7 @@
     var q = norm($("input", dlg).value), ul = $("ul", dlg);
     var hits = (q ? idx.filter(function (x) { return x._n.indexOf(q) >= 0 || x._a.indexOf(q) >= 0; }) : idx.filter(function (x) { return x.k === "Country"; }))
       .map(function (x) {
-        var pre = x._n.indexOf(q) === 0 ? 0 : 2, kind = { Country: 0, Province: 1, Ranking: 2, District: 3 }[x.k];
+        var pre = x._n.indexOf(q) === 0 ? 0 : 2, kind = { Country: 0, Province: 1, "Former province": 2, Ranking: 3, District: 4 }[x.k];
         return [pre * 10 + kind, x];
       }).sort(function (a, b) { return a[0] - b[0]; }).slice(0, 9).map(function (p) { return p[1]; });
     sel = 0;

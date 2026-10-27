@@ -182,6 +182,7 @@ class Proj:
 
 
 TH_PROJ = Proj(97.25, 20.55, 40.0, 13.0)
+VN_PROJ = Proj(102.0, 23.5, 40.0, 16.0)
 SEA_PROJ = Proj(90.0, 29.0, 15.0, 8.0)
 SEA_BOX = (90.0, -12.0, 143.0, 29.0)
 LABEL_AT = {  # lon, lat — placed by hand on open land (or open sea for the small three)
@@ -298,7 +299,9 @@ def load():
     wb = json.load(open(DATA / "sea_wb.json"))
     ctx = json.load(open(REF / "nesdc_context.json")) if (REF / "nesdc_context.json").exists() else {"provinces": {}, "year": None}
     geo = json.load(open(REF / "sea.geo.json"))
-    return meta, D, P, sso, dopa, wb, ctx, geo
+    vn = json.load(open(DATA / "vn_gso.json"))
+    vgeo = json.load(open(REF / "vn.geo.json"))
+    return meta, D, P, sso, dopa, wb, ctx, geo, vn, vgeo
 
 
 def region_model(wb):
@@ -407,6 +410,48 @@ def thailand_model(P, D, sso, dopa, ctx):
     return T, by_prov
 
 
+VN_DESC = {  # what each lens measures inside Vietnam (NSO tables, 34 provinces on 2025 boundaries)
+    "people": "Average population growth",
+    "jobs": "Employed workers growth",
+    "biz": "Newly registered enterprises growth",
+    "money": "Enterprise net revenue growth (nominal)",
+}
+
+
+def vietnam_model(vn):
+    """34 provinces (2025 boundaries), each lens = latest year-on-year change of an additive series."""
+    S = {"people": "pop", "jobs": "employed", "biz": "new_firms", "money": "revenue"}
+    prelim = {k: set(map(int, v)) for k, v in vn["preliminary"].items()}
+    V = {}
+    years = {}
+    for slug_, p in vn["provinces"].items():
+        r = {"id": slug_, "slug": slug_, "name": p["name"], "native": p["native"], "former": p["former"],
+             "former_detail": p["former_detail"], "series": {}}
+        for lens, key in S.items():
+            ser = {int(y): v for y, v in p["series"][key].items()}
+            ys = sorted(y for y in ser if y - 1 in ser)
+            y = ys[-1]
+            r[lens] = growth(ser[y], ser[y - 1])
+            years[lens] = (y - 1, y, y in prelim.get(key, set()))
+            r["series"][lens] = sorted(ser.items())
+        pop = {int(y): v for y, v in p["series"]["pop"].items()}
+        y = max(pop)
+        r["pop"] = pop[y] * 1000
+        r["people_5y"] = growth(pop[y], pop.get(y - 5))
+        mig = {int(k): v for k, v in p["series"]["netmig"].items()}
+        r["netmig"], r["netmig_year"] = (mig[max(mig)], max(mig)) if mig else (None, None)
+        r["employed"] = dict(r["series"]["jobs"])[years["jobs"][1]] * 1000
+        r["new_firms"] = dict(r["series"]["biz"])[years["biz"][1]]
+        firms = {int(k): v for k, v in p["series"]["firms"].items()}
+        r["firms"], r["firms_year"] = (firms[max(firms)], max(firms)) if firms else (None, None)
+        r["firms_growth"] = growth(firms.get(max(firms)), firms.get(max(firms) - 1)) if firms else None
+        r["revenue"] = dict(r["series"]["money"])[years["money"][1]]
+        V[slug_] = r
+    score_lenses(V, ["people", "jobs", "biz", "money"])
+    label = {k: (f"{a} to {b}" + (" (preliminary)" if pre else ""), b) for k, (a, b, pre) in years.items()}
+    return V, label
+
+
 # ── page shell ───────────────────────────────────────────────────────────
 
 def icon(k, cls="ic"):
@@ -479,6 +524,7 @@ def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") 
   <a class="brand" href="{U('/')}"><img src="{U('/assets/icon.svg')}" alt="" width="26" height="26"><span>Where Money Moves</span></a>
   <nav class="nav" aria-label="Main">
     <a href="{U('/thailand/')}">Thailand</a>
+    <a href="{U('/vietnam/')}">Vietnam</a>
     <a href="{U('/rankings/')}">Rankings</a>
     <a href="{U('/compare/')}" class="cmp">Compare<span class="count" hidden></span></a>
     <a href="{U('/about/')}">Method</a>
@@ -493,7 +539,7 @@ def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") 
 <footer class="foot">
   <div>
     <p><b>Where Money Moves</b> tracks where people, jobs, businesses and money are moving across Southeast Asia, from public data only.</p>
-    <p>Sources: World Bank WDI (CC BY 4.0). Thailand: Bank of Thailand district deposits and credit, Social Security Office, Department of Provincial Administration (Open Data Common). Boundaries: Natural Earth, geoBoundaries/OCHA (CC BY 3.0 IGO), thailand-canonical-admin-names (CC BY 4.0).</p>
+    <p>Sources: World Bank WDI (CC BY 4.0). Thailand: Bank of Thailand district deposits and credit, Social Security Office, Department of Provincial Administration (Open Data Common). Vietnam: National Statistics Office (PX-Web). Boundaries: Natural Earth, geoBoundaries/OCHA and Government of Viet Nam via HDX (CC BY 3.0 IGO), thailand-canonical-admin-names (CC BY 4.0).</p>
   </div>
   <p class="small">Built {meta['built']}. <a href="{U('/about/')}">How the numbers work</a>. <a href="https://github.com/minsungkim-source/where-money-moves">Source code</a>.</p>
 </footer>
@@ -565,12 +611,16 @@ def tone_from(s: str) -> str:
 # ── build ────────────────────────────────────────────────────────────────
 
 def main():
-    meta, D, P, sso, dopa, wb, ctx, geo = load()
+    meta, D, P, sso, dopa, wb, ctx, geo, vn, vgeo = load()
     meta["build_id"] = meta["generated_at"][:19].replace(":", "").replace("-", "")
     meta["built"] = meta["generated_at"][:10]
     latest, y1 = meta["latest"], meta["yoy_base"]
     R = region_model(wb)
     T, by_prov = thailand_model(P, D, sso, dopa, ctx)
+    V, vlab = vietnam_model(vn)
+
+    def v_url(v):
+        return f"/vietnam/{v['slug']}/"
     Pm = {p["id"]: p for p in P}
     lens_keys = [k for k, *_ in LENSES]
     asof = {"people": f"Dec {dopa['years'][-1]}", "jobs": f"Dec {sso['years'][-1]}",
@@ -685,6 +735,32 @@ def main():
         return (f'<svg class="map th" data-lens="score" viewBox="0 0 {TW:.0f} {TH:.0f}" role="group" aria-label="Map of Thailand by province">{HATCH}'
                 f'<g class="units">{shapes}</g></svg>')
 
+    # Vietnam: 34 provinces drawn from 63 old shapes. Fills carry no stroke; outlines and former borders are
+    # separate layers built from shared TopoJSON arcs (etl/vn_geo.py), so merged provinces show no seam.
+    vn_rings = {k: [[VN_PROJ(x, y) for x, y in r] for r in rs] for k, rs in vgeo["provinces"].items()}
+    vn_full = {k: path_d(v, min_len=0.6) for k, v in vn_rings.items()}
+    vn_mini = {k: path_d(v, tol=1.0, min_len=2.0) for k, v in vn_rings.items()}
+    vn_line = lambda arcs, ml=0.0: "".join("M" + "L".join(f"{x:.1f},{y:.1f}" for x, y in (VN_PROJ(*pt) for pt in a)) for a in arcs
+                                         if len(a) > 1 and (max(p[0] for p in a) - min(p[0] for p in a) + max(p[1] for p in a) - min(p[1] for p in a)) * 40 >= ml)
+    vn_outline, vn_former = vn_line(vgeo["outline"], 0.8), vn_line(vgeo["former"])
+    VW = max(x for rs in vn_rings.values() for r in rs for x, _ in r) + 4
+    VH = max(y for rs in vn_rings.values() for r in rs for _, y in r) + 4
+
+    def vn_map(highlight=None, mini=False):
+        shapes = ""
+        for k, v in V.items():
+            if mini:
+                shapes += f'<path d="{vn_mini[k]}"{" class=on" if highlight == k else ""}/>'
+                continue
+            tip = {"n": v["name"], "a": v["native"], "s": None if v["score"] is None else round(v["score"]),
+                   "people": pct(v["people"]), "jobs": pct(v["jobs"]), "biz": pct(v["biz"]), "money": pct(v["money"])}
+            shapes += (f'<a href="{U(v_url(v))}" data-tip=\'{esc(json.dumps(tip, ensure_ascii=False))}\' aria-label="{esc(v["name"])}, momentum {tip["s"]}">'
+                       f'<path d="{vn_full[k]}" {lens_attrs(v, lens_keys)}/></a>')
+        if mini:
+            return f'<svg class="map mini vn" viewBox="0 0 {VW:.0f} {VH:.0f}" aria-hidden="true"><g>{shapes}</g></svg>'
+        return (f'<svg class="map vn" data-lens="score" viewBox="0 0 {VW:.0f} {VH:.0f}" role="group" aria-label="Map of Vietnam by province (2025 boundaries)">{HATCH}'
+                f'<g class="units">{shapes}</g><path class="former" d="{vn_former}"/><path class="outline" d="{vn_outline}"/></svg>')
+
     # ── ranked lists (reorder with FLIP on lens change)
     def rank_list(units, url_of, name_of, native_of, lang_of, cls="", limit=None, extra=""):
         keys = ["score"] + lens_keys
@@ -719,6 +795,15 @@ def main():
             for i, t in enumerate(top, 1))
         sub = "Momentum across all four lenses" if k == "score" else f"{LENS[k][2]}, {base_of[k]} to {asof[k]}"
         th_lists += f'<div class="tlist" data-for="{k}"{"" if k == "score" else " hidden"}><p class="sub">{esc(sub)}</p><ol class="rlist plain">{rows}</ol></div>'
+    vn_lists = ""
+    for k in ["score"] + lens_keys:
+        top = sorted([v for v in V.values() if v.get(k) is not None], key=lambda v: -v[k])[:8]
+        rows = "".join(
+            f'<li><a href="{U(v_url(v))}"><span class="pos">{i}</span><span class="nm">{esc(v["name"])}{native(v["native"], "vi")}</span>'
+            f'<span class="val {tone(v[k]) if k != "score" else ""}">{esc(f"{v[k]:.0f}" if k == "score" else pct(v[k]))}</span></a></li>'
+            for i, v in enumerate(top, 1))
+        sub = "Momentum across all four lenses" if k == "score" else f"{VN_DESC[k]}, {vlab[k][0]}"
+        vn_lists += f'<div class="tlist" data-for="{k}"{"" if k == "score" else " hidden"}><p class="sub">{esc(sub)}</p><ol class="rlist plain">{rows}</ol></div>'
     top_d = sorted([d for d in D if d.get("score") is not None], key=lambda d: d["rank"])[:10]
     leaving = sorted([d for d in D if d["dep_yoy"] is not None and d["in_latest"]], key=lambda d: d["dep_yoy"])[:5]
 
@@ -728,7 +813,7 @@ def main():
 
     coverage_rows = ""
     for r in sorted(Rv, key=lambda r: r["name"]):
-        sub = '<td class="yes">Provinces and districts</td>' if r["iso"] == "THA" else '<td class="soon">Planned</td>'
+        sub = {"THA": '<td class="yes">77 provinces, 264 districts</td>', "VNM": '<td class="yes">34 provinces (2025)</td>'}.get(r["iso"], '<td class="soon">Planned</td>')
         coverage_rows += (f'<tr><th scope="row"><a href="{U(c_url(r))}">{esc(r["name"])}</a></th>'
                           + "".join(f'<td>{r[k + "_year"] or "–"}</td>' for k in lens_keys) + sub + "</tr>")
     home = f"""
@@ -759,6 +844,17 @@ def main():
   <div class="split-body">
     <div class="split-map">{lens_tabs(label="Thailand lens")}<div class="mapframe">{th_map()}</div>{legend("Thailand's 77 provinces")}</div>
     <div class="split-list">{th_lists}</div>
+  </div>
+</section>
+<section class="split reveal" id="vietnam">
+  <div class="split-head">
+    <h2>Inside Vietnam</h2>
+    <p>The 34 provinces formed in 2025, rebuilt from 63 old ones. Population and jobs to 2025, new businesses and enterprise revenue to 2024, from the National Statistics Office.</p>
+    <a class="btn" href="{U('/vietnam/')}">Open the Vietnam explorer</a>
+  </div>
+  <div class="split-body">
+    <div class="split-map">{lens_tabs(label="Vietnam lens")}<div class="mapframe">{vn_map()}</div>{legend("Vietnam's 34 provinces")}</div>
+    <div class="split-list">{vn_lists}</div>
   </div>
 </section>
 <section class="movers reveal">
@@ -817,9 +913,13 @@ def main():
             deep = (f'<section class="callout reveal"><h2>Go deeper: 77 provinces, 264 districts</h2>'
                     f'<p>Thailand has province-level data on all four lenses and monthly bank data by district.</p>'
                     f'<a class="btn" href="{U("/thailand/")}">Open the Thailand explorer</a></section>')
+        elif r["iso"] == "VNM":
+            deep = (f'<section class="callout reveal"><h2>Go deeper: 34 provinces</h2>'
+                    f'<p>Population, jobs, new businesses and enterprise revenue for every province on the 2025 boundaries, with the 63 former provinces underneath.</p>'
+                    f'<a class="btn" href="{U("/vietnam/")}">Open the Vietnam explorer</a></section>')
         else:
             deep = (f'<section class="callout quiet reveal"><h2>Subnational data for {esc(r["name"])}</h2>'
-                    f'<p>Not yet. Country-level figures above are from the World Bank. Provinces and districts arrive country by country, starting with Malaysia.</p></section>')
+                    f'<p>Not yet. Country-level figures above are from the World Bank. Provinces arrive country by country: Thailand and Vietnam so far, Malaysia next.</p></section>')
         others = "".join(f'<li><a href="{U(c_url(o))}">{esc(o["name"])}</a></li>' for o in sorted(Rv, key=lambda o: o["name"]) if o is not r)
         body = f"""
 <section class="hero detail">
@@ -975,6 +1075,98 @@ def main():
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/"), (t["name"], p_url(t)), (d["name_en"], path)],
                          watch={"id": f"d-{d['id']}", "name": f"{d['name_en']}, {t['name']}", "url": U(path)}))
 
+    # ── VIETNAM explorer
+    vk = ["people", "jobs", "biz", "money"]
+    vrows = ""
+    for v in sorted(V.values(), key=lambda v: (v["score"] is None, -(v["score"] or 0))):
+        vrows += (f'<tr><td class="num pos">{v.get("rank") or "–"}</td><th scope="row"><a href="{U(v_url(v))}">{esc(v["name"])}</a>{native(v["native"], "vi")}'
+                  f'<small>{esc(", ".join(v["former"])) if len(v["former"]) > 1 else ""}</small></th>'
+                  f'<td data-v="{"" if v["score"] is None else round(v["score"], 2)}">{score_pill(v["score"])}</td>'
+                  + "".join(value_cell(v[k]) for k in vk) + "</tr>")
+    vhead = ('<th scope="col" class="num">#</th><th scope="col">Province</th><th scope="col"><button data-k="2">Momentum</button></th>'
+             + "".join(f'<th scope="col" class="num"><button data-k="{i}">{esc(LENS[k][0])}</button></th>' for i, k in enumerate(vk, 3)))
+    explorer = f"""
+<section class="hero">
+  <h1>Vietnam, province by province</h1>
+  <p class="lede">The 34 provinces created by the 2025 merger, each rebuilt from the old provinces it absorbed. Where people are settling, where jobs and new businesses are being added, and where enterprise revenue is growing.</p>
+</section>
+<section class="split flush">
+  <div class="split-body">
+    <div class="split-map">{lens_tabs(label="Vietnam lens")}<div class="mapframe tall">{vn_map()}</div>{legend("Vietnam's 34 provinces")}
+      <p class="note">Dashed lines are the provincial borders before 1 July 2025.</p></div>
+    <div class="split-list">
+      <dl class="asof">{"".join(f'<div>{icon(k)}<dt>{esc(LENS[k][0])}</dt><dd>{esc(VN_DESC[k])}<br><small>{esc(vlab[k][0])}</small></dd></div>' for k in vk)}</dl>
+    </div>
+  </div>
+</section>
+<section class="reveal">
+  <h2>All 34 provinces</h2>
+  <p class="sub">Select a column heading to sort. Merged provinces list the provinces they were formed from.</p>
+  <div class="tablewrap"><table class="rank" data-sortable><thead><tr>{vhead}</tr></thead><tbody>{vrows}</tbody></table></div>
+</section>
+"""
+    write("/vietnam/", page(U("/vietnam/"), "Vietnam's 34 provinces ranked by population, jobs, new businesses and revenue | Where Money Moves",
+                            "Every Vietnamese province on the 2025 boundaries, ranked on population, employment, new enterprises and enterprise revenue growth.",
+                            explorer, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/")]))
+
+    # ── VIETNAM province pages
+    units = vn["units"]
+    for slug_, v in V.items():
+        yl = lambda pts: [(y, val) for y, val in pts]
+        merged = len(v["former"]) > 1
+        formed = (f"Formed on 1 July 2025 from {', '.join(v['former'][:-1])} and {v['former'][-1]}." if merged
+                  else "Unchanged by the 2025 merger.")
+        panels = (
+            lens_panel("people", pct(v["people"]), f"average population, {vlab['people'][0]}", f"#{v.get('people_rank', '–')} of 34",
+                       [("Population", f"{v['pop']:,.0f}"), ("Five-year change", pct(v["people_5y"])),
+                        ("Net migration", f"{v['netmig']:+.1f} per 1,000 ({v['netmig_year']})".replace("-", "−") if v["netmig"] is not None else "–")],
+                       chart([(y, val * 1000) for y, val in v["series"]["people"]], "Average population", x_label=str, every=3, kind="dots"),
+                       "Net migration is people moving in minus people moving out, per 1,000 residents. Positive means the province is gaining people from elsewhere.") +
+            lens_panel("jobs", pct(v["jobs"]), f"employed workers, {vlab['jobs'][0]}", f"#{v.get('jobs_rank', '–')} of 34",
+                       [("Employed workers", f"{v['employed']:,.0f}")],
+                       chart([(y, val * 1000) for y, val in v["series"]["jobs"]], "Employed workers", x_label=str, every=1, kind="dots")) +
+            lens_panel("biz", pct(v["biz"]), f"newly registered enterprises, {vlab['biz'][0]}", f"#{v.get('biz_rank', '–')} of 34",
+                       [("New enterprises", f"{v['new_firms']:,.0f}"),
+                        ("Active enterprises", f"{v['firms']:,.0f} ({pct(v['firms_growth'])}, {v['firms_year']})" if v["firms"] else "–")],
+                       chart(yl(v["series"]["biz"]), "Newly registered enterprises per year", x_label=str, every=2, kind="dots")) +
+            lens_panel("money", pct(v["money"]), f"enterprise net revenue, {vlab['money'][0]}", f"#{v.get('money_rank', '–')} of 34",
+                       [("Net revenue", f"{v['revenue'] / 1000:,.0f} trillion dong")],
+                       chart([(y, val * 1e9) for y, val in v["series"]["money"] if y >= 2015], "Enterprise net revenue, nominal", unit="₫", x_label=str, every=2, kind="dots"),
+                       "Revenue of active enterprises with business results, by where the enterprise is registered. Nominal.")
+        )
+        fd = ""
+        if merged:
+            rows = ""
+            for name, d in v["former_detail"].items():
+                def yoy(key):
+                    ser = sorted(d[key].items())
+                    return growth(ser[-1][1], ser[-2][1]) if len(ser) == 2 else None
+                popv = sorted(d["pop"].items())[-1][1] * 1000
+                rows += (f'<tr><th scope="row">{esc(name)}</th><td class="num" data-v="{popv}">{popv:,.0f}</td>'
+                         + value_cell(yoy("pop")) + value_cell(yoy("employed")) + value_cell(yoy("new_firms")) + value_cell(yoy("revenue")) + "</tr>")
+            fd = (f'<section class="reveal"><h2>The provinces it was formed from</h2><p class="sub">Each former province on its own, latest year on year.</p>'
+                  f'<div class="tablewrap"><table class="rank" data-sortable><thead><tr><th scope="col">Former province</th>'
+                  f'<th scope="col" class="num"><button data-k="1">Population</button></th><th scope="col" class="num"><button data-k="2">People</button></th>'
+                  f'<th scope="col" class="num"><button data-k="3">Jobs</button></th><th scope="col" class="num"><button data-k="4">New businesses</button></th>'
+                  f'<th scope="col" class="num"><button data-k="5">Revenue</button></th></tr></thead><tbody>{rows}</tbody></table></div></section>')
+        near = sorted([o for o in V.values() if o is not v], key=lambda o: -(o["score"] or 0))[:10]
+        body = f"""
+<section class="hero detail">
+  <div><h1>{esc(v['name'])} {native(v['native'], 'vi')}</h1>
+  <p class="lede">Momentum {('%.0f' % v['score']) if v['score'] is not None else '–'} out of 100, #{v.get('rank', '–')} of 34 provinces. {esc(formed)}</p></div>
+  {vn_map(highlight=slug_, mini=True)}
+</section>
+<div class="panels">{panels}</div>
+{fd}
+<nav class="others" aria-label="Other provinces"><h2>Other provinces with high momentum</h2><ul class="chips">{"".join(f'<li><a href="{U(v_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
+"""
+        path = v_url(v)
+        write(path, page(U(path), f"{v['name']}, Vietnam: population, jobs, new businesses and revenue | Where Money Moves",
+                         f"{v['name']} province, Vietnam (2025 boundaries): population {pct(v['people'])}, employment {pct(v['jobs'])}, new enterprises {pct(v['biz'])}, enterprise revenue {pct(v['money'])}."
+                         + (f" Formed from {', '.join(v['former'])}." if merged else ""),
+                         body, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/"), (v["name"], path)],
+                         watch={"id": f"v-{slug_}", "name": f"{v['name']}, Vietnam", "url": U(path)}))
+
     # ── RANKINGS
     rk_index = []
 
@@ -1037,6 +1229,21 @@ def main():
     ranking_page("thailand-branch-closures", "Thai districts losing bank branches", f"Change in commercial-bank branches, {per}.",
                  head_d, "".join(drank(d, i) for i, d in enumerate(srt, 1)))
 
+    def vrow(v, pos):
+        return (f'<tr><td class="num pos">{pos}</td><th scope="row"><a href="{U(v_url(v))}">{esc(v["name"])}</a>{native(v["native"], "vi")}</th>'
+                f'<td data-v="{round(v["score"], 2) if v["score"] is not None else ""}">{score_pill(v["score"])}</td>'
+                + "".join(value_cell(v[k]) for k in vk) + "</tr>")
+    vs = sorted(V.values(), key=lambda v: (v["score"] is None, -(v["score"] or 0)))
+    ranking_page("vietnam-provinces", "Vietnamese provinces by momentum",
+                 "All 34 provinces (2025 boundaries), average rank across population, employment, new enterprises and enterprise revenue.",
+                 vhead, "".join(vrow(v, v.get("rank") or "–") for v in vs))
+    for k, key, title in (("people", "vietnam-population-growth", "Vietnamese provinces by population growth"),
+                          ("jobs", "vietnam-job-growth", "Vietnamese provinces by job growth"),
+                          ("biz", "vietnam-new-business-growth", "Vietnamese provinces by new business growth"),
+                          ("money", "vietnam-revenue-growth", "Vietnamese provinces by enterprise revenue growth")):
+        srt = sorted([v for v in V.values() if v[k] is not None], key=lambda v: -v[k])
+        ranking_page(key, title, f"{VN_DESC[k]}, {vlab[k][0]}.", vhead, "".join(vrow(v, i) for i, v in enumerate(srt, 1)))
+
     body = ('<section class="hero"><h1>Rankings</h1><p class="lede">Every list on the site, as a sortable table.</p></section><ul class="rk-index">'
             + "".join(f'<li class="reveal"><a href="{U(p)}"><b>{esc(t)}</b><span>{esc(d)}</span></a></li>' for p, t, d in rk_index) + "</ul>")
     write("/rankings/", page(U("/rankings/"), "Rankings | Where Money Moves", "Sortable rankings of Southeast Asian countries, Thai provinces and districts.",
@@ -1053,6 +1260,9 @@ def main():
     for d in D:
         cmp[f"d-{d['id']}"] = {"n": f"{d['name_en']}, {T[d['prov']]['name']}", "a": d["name_th"], "u": U(d_url(d)), "k": "Thai district",
                                "s": d.get("score"), "money": d["dep_yoy"], "moneyy": month_label(latest), "credit": d["cr_yoy"]}
+    for v in V.values():
+        cmp[f"v-{v['slug']}"] = {"n": f"{v['name']}, Vietnam", "a": v["native"], "u": U(v_url(v)), "k": "Vietnamese province", "s": v["score"],
+                                 **{k: v[k] for k in vk}, **{k + "y": str(vlab[k][1]) for k in vk}}
     (OUT / "assets" / "compare.json").write_text(json.dumps(cmp, ensure_ascii=False, separators=(",", ":")))
     body = """
 <section class="hero"><h1>Compare</h1><p class="lede">Places you watch appear here side by side. Select Watch on any country, province or district page.</p>
@@ -1067,11 +1277,15 @@ def main():
     # ── ABOUT
     sections = [
         ("Two layers that are never mixed",
-         "Countries are compared with World Bank indicators, which share definitions. Inside Thailand we use national sources, which are richer but not comparable with other countries. A Thai province is only ever ranked against other Thai provinces."),
+         "Countries are compared with World Bank indicators, which share definitions. Inside Thailand and Vietnam we use national sources, which are richer but not comparable across countries. A Thai province is only ever ranked against other Thai provinces, a Vietnamese one against Vietnamese provinces."),
         ("The four lenses for countries",
          "People is urban population growth: people moving into cities. Jobs is growth in employed people (labour force × (1 − unemployment), ILO-modelled). Businesses is growth in new limited-liability firms registered (World Bank Entrepreneurship data). Money is real GDP growth. Each uses its own latest year, shown next to the number."),
         ("The four lenses for Thailand",
          f"People: registered population, Department of Provincial Administration, {base_of['people']} to {asof['people']}. Jobs: employees insured under Section 33 of the Social Security Act, {base_of['jobs']} to {asof['jobs']}. Businesses: employers registered with the Social Security Office, the same period. Money: commercial-bank deposits, Bank of Thailand district table, {base_of['money']} to {asof['money']}."),
+        ("The four lenses for Vietnam",
+         f"From the National Statistics Office (formerly GSO). People: average population, {vlab['people'][0]}, with net migration per 1,000 residents alongside. Jobs: employed workers, {vlab['jobs'][0]}. Businesses: newly registered enterprises, {vlab['biz'][0]}. Money: net revenue of active enterprises, {vlab['money'][0]}, nominal. The latest year is often preliminary."),
+        ("Vietnam's 2025 merger",
+         "On 1 July 2025 Vietnam's 63 provinces became 34. Every merger joined whole provinces, so the statistics, still published for the 63, add up exactly into the new ones; we check that the 63 sum to the national total every year from 2010. Maps are rebuilt from the 63 former shapes, and the old borders are drawn dashed. Far-offshore archipelagos are not drawn at this scale."),
         ("Proxies, and why",
          "Thailand's company register has no clean province series in open data, so businesses are proxied by employers registered with social security: every business with staff must register. Registered population undercounts places people move to without changing their house registration, such as Bangkok and the Eastern Economic Corridor, and leaves out most migrant workers. Formal jobs leave out the informal sector, roughly half of Thai employment."),
         ("Momentum score",
@@ -1090,6 +1304,9 @@ def main():
     idx = ([{"n": r["name"], "a": r["native"], "u": U(c_url(r)), "k": "Country"} for r in Rv]
            + [{"n": t["name"], "a": t["native"], "u": U(p_url(t)), "k": "Province"} for t in T.values()]
            + [{"n": d["name_en"], "a": f'{d["name_th"]}  {T[d["prov"]]["name"]}', "u": U(d_url(d)), "k": "District"} for d in D]
+           + [{"n": v["name"], "a": v["native"], "u": U(v_url(v)), "k": "Province"} for v in V.values()]
+           + [{"n": f, "a": f"now part of {v['name']}", "u": U(v_url(v)), "k": "Former province"}
+              for v in V.values() if len(v["former"]) > 1 for f in v["former"] if f != v["native"]]
            + [{"n": t, "a": "", "u": U(p), "k": "Ranking"} for p, t, _ in rk_index])
     (OUT / "assets" / "search.json").write_text(json.dumps(idx, ensure_ascii=False, separators=(",", ":")))
     (OUT / "manifest.webmanifest").write_text(json.dumps({

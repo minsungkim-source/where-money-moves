@@ -20,6 +20,7 @@ import etl          # noqa: E402
 import summary      # noqa: E402
 import th_dopa      # noqa: E402
 import th_sso       # noqa: E402
+import vn_gso       # noqa: E402
 
 W = 16  # read_all asks openpyxl for 16 columns
 
@@ -174,6 +175,28 @@ class Dopa(unittest.TestCase):
     def test_only_finished_decembers(self):
         from datetime import date
         self.assertEqual(th_dopa.december_years(date(2026, 10, 27))[-1], 2025)
+
+
+class Vietnam(unittest.TestCase):
+    def test_crosswalk_is_63_to_34_whole_provinces(self):
+        cw = vn_gso.crosswalk()
+        self.assertEqual(len(cw), 63)
+        self.assertEqual(len({r["new_slug"] for r in cw}), 34)
+        self.assertEqual(len({vn_gso.names(r)[0] for r in cw}), 63)            # no old province listed twice
+        merged = {}
+        for r in cw:
+            merged.setdefault(r["new_slug"], []).append(r["gso_name"])
+        self.assertEqual(sorted(merged["ho-chi-minh-city"]), sorted(["TP. Hồ Chí Minh", "Bình Dương", "Bà Rịa - Vũng Tàu"]))
+        self.assertEqual(sum(1 for v in merged.values() if len(v) == 1), 11)   # 11 provinces were left as they were
+
+    def test_names_fold_and_alternates(self):
+        self.assertEqual(vn_gso.fold("Đắk Lắk"), "daklak")
+        self.assertEqual(vn_gso.fold("Ðồng bằng"), "dongbang")                 # U+00D0 as well as U+0110
+        hue = next(r for r in vn_gso.crosswalk() if r["new_slug"] == "hue")
+        self.assertEqual(vn_gso.names(hue), ["hue", "thuathienhue"])
+        self.assertEqual(vn_gso.label(hue), "Thừa Thiên Huế")
+        hcm = next(r for r in vn_gso.crosswalk() if r["gso_name"].startswith("TP."))
+        self.assertEqual(vn_gso.names(hcm), ["hochiminh"])
 
 
 class Summary(unittest.TestCase):

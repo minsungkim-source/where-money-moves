@@ -29,12 +29,21 @@ Ship small, then widen. Top to bottom.
 - [ ] Owner setting: allow Actions to open PRs (otherwise the run leaves an issue with a one-click PR link)
 - [ ] District-level population: map municipality (เทศบาล) registries to their districts, then add People to district pages
 
-## v1.2 — Malaysia subnational (second country)
+## v1.2 — Vietnam subnational ✓ (2026-10-27)
+
+- [x] NSO PX-Web: population + net migration, employed, new enterprises, active enterprises, enterprise revenue
+- [x] 63 → 34 crosswalk (2025 merger), checked against the national total every year; old provinces kept as a breakdown
+- [x] Map merged from geoBoundaries TopoJSON by shared arcs; former borders drawn dashed
+- [x] /vietnam/ explorer, 34 province pages, 5 rankings, home section, search finds former provinces, monthly refresh
+- [ ] Vietnam has only province level (no district stats in PX-Web); a Money lens closer to Thailand's
+      (bank credit by province) would need State Bank of Vietnam regional data
+
+## v1.3 — Malaysia subnational (third country)
 
 - [ ] OpenDOSM (data.gov.my, open API): population by state/district, labour force by state, GDP by state
 - [ ] Proves the "one country at a time" structure: `/malaysia/{state}/`, its own layer and ranks
 
-## v1.3 — proxies where open data is thin
+## v1.4 — proxies where open data is thin
 
 - [ ] Night-time lights (VIIRS monthly) as a common subnational Money proxy for countries without bank data
 - [ ] OSM points of interest, year on year (Overpass attic), as a Businesses proxy outside Thailand
