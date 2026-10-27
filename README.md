@@ -77,9 +77,9 @@ Design notes live at the top of `static/app.css`. Project skills used while buil
 
 ## Hosting
 
-- **Vercel**: `vercel.json` runs `python3 build.py` and serves `site/`. Manual: `./deploy.sh`
-- **GitHub Pages**: `.github/workflows/pages.yml`, run manually (Actions → Deploy to GitHub Pages) after Pages is
-  enabled in the repository settings with source "GitHub Actions"
+Live on **GitHub Pages**: <https://minsungkim-source.github.io/where-money-moves/>.
+`.github/workflows/pages.yml` builds and deploys on every push to `main` (`BASE_PATH=/where-money-moves`).
+`vercel.json` and `./deploy.sh` remain as an alternative host.
 
 ## Licences
 

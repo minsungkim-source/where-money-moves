@@ -19,8 +19,8 @@ Ship small, then widen. Top to bottom.
 
 ## v1.1 — go live (needs the owner)
 
-- [ ] Pick hosting: Vercel (`vercel.json`) or GitHub Pages (enable Pages, source "GitHub Actions", run `pages.yml`)
-- [ ] Set `SITE_URL` / `BASE_PATH` for that host; Search Console + sitemap
+- [x] Hosting: GitHub Pages, deployed by `pages.yml` on push to `main`
+- [ ] Search Console + sitemap (note: robots.txt only counts at a domain root, so a sub-path site relies on the sitemap being submitted)
 - [ ] Monthly refresh workflow: run the four ETLs → open a data PR (never auto-merge)
 - [ ] ETL regression tests with trimmed real fixtures (BOT layouts, SSO regions, DOPA duplicate table)
 

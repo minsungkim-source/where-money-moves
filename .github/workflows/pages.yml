@@ -1,8 +1,10 @@
-# Builds site/ from the committed data and deploys it to GitHub Pages.
-# Manual for now: enable Pages (Settings → Pages → Source: GitHub Actions), then run this workflow.
+# Builds site/ from the committed data and deploys it to GitHub Pages on every push to main.
+# Pages must be enabled once with source "GitHub Actions" (Settings → Pages).
 name: Deploy to GitHub Pages
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
