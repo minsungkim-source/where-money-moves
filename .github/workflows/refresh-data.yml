@@ -1,0 +1,123 @@
+# Monthly data refresh.
+# Runs every source's ETL, rebuilds the site to prove it still builds, and if the data really changed
+# opens (or updates) a pull request for a person to review. It never merges by itself: merging to main
+# is what publishes, through pages.yml.
+#
+# A source that fails does not block the others. Its last good data stays in place, and an issue
+# labelled "source-failed" records what broke with a link to the run.
+name: Refresh data
+
+on:
+  schedule:
+    - cron: "0 3 15 * *"        # 15th of each month, 03:00 UTC (10:00 Bangkok)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BRANCH: data/monthly-refresh
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: etl/requirements.txt
+      - run: pip install -r etl/requirements.txt
+
+      # One step per source so a failure is named in the summary and in the issue.
+      - name: "Money: Bank of Thailand districts"
+        id: bot
+        continue-on-error: true
+        run: python etl/etl.py
+      - name: "Jobs and businesses: Social Security Office"
+        id: sso
+        continue-on-error: true
+        run: python etl/th_sso.py
+      - name: "People: DOPA registered population"
+        id: dopa
+        continue-on-error: true
+        run: python etl/th_dopa.py
+      - name: "Region: World Bank"
+        id: wb
+        continue-on-error: true
+        run: python etl/sea_wb.py
+
+      - name: Site still builds
+        run: python build.py
+
+      - name: Did the data change?
+        id: diff
+        run: |
+          if python etl/summary.py --changed; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Summary
+        run: |
+          python etl/summary.py > /tmp/summary.md
+          {
+            echo "| Source | Result |"; echo "|---|---|"
+            echo "| Bank of Thailand | ${{ steps.bot.outcome }} |"
+            echo "| Social Security Office | ${{ steps.sso.outcome }} |"
+            echo "| DOPA | ${{ steps.dopa.outcome }} |"
+            echo "| World Bank | ${{ steps.wb.outcome }} |"
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } > /tmp/sources.md
+          cat /tmp/summary.md /tmp/sources.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the data pull request
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add data/processed
+          git commit -m "data: monthly refresh $(date -u +%Y-%m-%d)"
+          git push --force origin "$BRANCH"
+          cat /tmp/summary.md /tmp/sources.md > /tmp/body.md
+          gh label create data --color 0e8a16 --description "Automated data refresh" 2>/dev/null || true
+          title="data: monthly refresh $(date -u +%Y-%m)"
+          if gh pr view "$BRANCH" --json state -q .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$BRANCH" --body-file /tmp/body.md
+          elif ! gh pr create --head "$BRANCH" --base main --title "$title" --body-file /tmp/body.md --label data; then
+            # The repository does not let Actions open pull requests (Settings → Actions → General →
+            # "Allow GitHub Actions to create and approve pull requests"). Leave a one-click link instead.
+            url="${{ github.server_url }}/${{ github.repository }}/compare/main...$BRANCH?expand=1&title=$(python -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$title")"
+            { echo "New data is ready on \`$BRANCH\`. **[Open the pull request]($url)**, review, then merge to publish."; echo; cat /tmp/body.md; } > /tmp/ready.md
+            num=$(gh issue list --label data --state open --json number -q '.[0].number')
+            if [ -n "$num" ]; then gh issue edit "$num" --body-file /tmp/ready.md; else gh issue create --title "Data ready to review: $title" --label data --body-file /tmp/ready.md; fi
+            echo "PR link: $url" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Report failed sources
+        if: steps.bot.outcome == 'failure' || steps.sso.outcome == 'failure' || steps.dopa.outcome == 'failure' || steps.wb.outcome == 'failure'
+        run: |
+          gh label create source-failed --color d93f0b --description "A data source failed in the monthly refresh" 2>/dev/null || true
+          title="Data refresh: a source failed"
+          num=$(gh issue list --label source-failed --state open --json number -q '.[0].number')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body-file /tmp/sources.md
+          else
+            {
+              echo "One or more sources failed in the monthly refresh. Their previous data is still live."
+              echo "A parser that stops on purpose (ParserDriftError) means the source changed shape: fix the parser, never loosen the check."
+              echo
+              cat /tmp/sources.md
+            } > /tmp/issue.md
+            gh issue create --title "$title" --label source-failed --body-file /tmp/issue.md
+          fi
+          exit 1
