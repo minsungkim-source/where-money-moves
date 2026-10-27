@@ -12,7 +12,7 @@ A static, English-only data site. Native place names (ชลบุรี, Việt
 
 | Lens | Countries (World Bank) | Thai provinces | Thai districts |
 |---|---|---|---|
-| People | urban population growth `SP.URB.TOTL` | registered population, DOPA (Dec, yearly) | – |
+| People | urban population growth `SP.URB.TOTL` | registered population, DOPA stat.bora (Dec, yearly) | – |
 | Jobs | employed = labour force × (1 − unemployment) | Section 33 insured employees, SSO (Dec, yearly) | – |
 | Businesses | new LLC registrations `IC.BUS.NREG` | employers registered with SSO (**proxy**) | – |
 | Money | real GDP `NY.GDP.MKTP.KD` | bank deposits + credit, BOT (monthly) | bank deposits + credit, BOT |
@@ -33,7 +33,7 @@ Layers are never mixed on one axis, because national definitions differ.
 ```
 etl/etl.py      BOT district deposits/credit/branches (zip, 2023-01 → latest)  → data/processed/{meta,districts,provinces}.json
 etl/th_sso.py   SSO enterprises + insured by province (xlsx per year)           → data/processed/th_sso.json
-etl/th_dopa.py  DOPA registered population by province (zip → HTML table)       → data/processed/th_dopa.json
+etl/th_dopa.py  DOPA registered population by province (stat.bora text files)    → data/processed/th_dopa.json
 etl/sea_wb.py   World Bank WDI, 11 countries                                    → data/processed/sea_wb.json
 etl/sea_geo.py  Natural Earth 1:50m outlines                                    → data/reference/sea.geo.json
 ```
@@ -42,7 +42,7 @@ Each source has a structure fingerprint and a total cross-check, and stops rathe
 
 - **BOT**: two sheet layouts, revised beats preliminary, deposit and credit parts sum to totals, masked `n.a.` cells
 - **SSO**: the December title matches the year, exactly 77 provinces, and they sum to "Whole Kingdom"
-- **DOPA**: Buddhist-year December period, provinces sum to the kingdom total, a duplicated table accepted only if identical
+- **DOPA**: the year page must list 77 provinces, male + female = total in every file; 2020–2024 match the old catalog exactly
 
 ```bash
 PY=../blindspot-th/etl/.venv/bin/python     # needs requests + openpyxl
@@ -51,6 +51,24 @@ $PY etl/sea_geo.py                           # rarely; outlines don't change
 ```
 
 Add `--use-cache` to the first three to reuse `data/raw/` (gitignored, never committed).
+
+### Monthly refresh
+
+`.github/workflows/refresh-data.yml` runs on the 15th of each month (and on demand):
+parser tests → every ETL → build → if the data really changed (timestamps ignored), a pull request
+`data/monthly-refresh` with a summary written by `etl/summary.py`. **Nothing merges by itself**; merging
+publishes through `pages.yml`. A failed source opens or updates a `source-failed` issue and keeps its last
+data; an overdue source opens a `source-stale` issue.
+
+DOPA's servers don't answer GitHub's runners (outside Thailand), so CI keeps the committed population data
+and DOPA is refreshed from a machine in Thailand once a year: `python etl/th_dopa.py`, commit, push.
+
+If the repository doesn't let Actions open pull requests, the run pushes the branch and opens a `data`
+issue with a one-click link to create the PR. To let it open PRs directly: Settings → Actions → General →
+"Allow GitHub Actions to create and approve pull requests".
+
+Tests: `python -m unittest discover -s tests` (parser guards, name matching, real SSO/DOPA fixtures),
+run by `test.yml` on every push and pull request.
 
 ## Site
 

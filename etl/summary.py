@@ -3,6 +3,7 @@ Markdown summary of what a data refresh changed — the body of the monthly data
 
   python etl/summary.py [--base HEAD]   → stdout
   python etl/summary.py --changed       → exit 0 if the data really changed, 1 if not (timestamps ignored)
+  python etl/summary.py --stale         → print overdue sources; exit 1 if any
 
 Compares data/processed/* in the working tree with the same files at --base (default HEAD).
 The reviewer should be able to merge or reject from this text alone: what moved, by how much,
@@ -52,9 +53,26 @@ def changed(base: str) -> bool:
     return any(strip_stamps(old(f, base)) != strip_stamps(new(f)) for f in FILES)
 
 
-def months_behind(period: str) -> int:
+def stale(today: date | None = None) -> list[str]:
+    """Sources whose next release is overdue. Monthly: > STALE_MONTHS behind. Yearly (December figures):
+    from July of year Y, December of Y-1 should be out."""
+    today = today or date.today()
+    out = []
+    m = new("meta.json")
+    if m and months_behind(m["latest"], today) > STALE_MONTHS:
+        out.append(f"Bank of Thailand district data ends {m['latest']}, {months_behind(m['latest'], today)} months ago.")
+    expect = today.year - 1 if today.month >= 7 else today.year - 2
+    for name, label, hint in (("th_dopa.json", "DOPA registered population", " catalog.dopa.go.th blocks overseas runners: run `python etl/th_dopa.py` from a machine in Thailand and commit."),
+                              ("th_sso.json", "SSO insured and employers", "")):
+        d = new(name)
+        if d and d["years"][-1] < expect:
+            out.append(f"{label} ends December {d['years'][-1]}; December {expect} should be published by now.{hint}")
+    return out
+
+
+def months_behind(period: str, today: date | None = None) -> int:
     y, m = (int(x) for x in period.split("-"))
-    t = date.today()
+    t = today or date.today()
     return (t.year - y) * 12 + (t.month - m)
 
 
@@ -66,9 +84,14 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="HEAD")
     ap.add_argument("--changed", action="store_true")
+    ap.add_argument("--stale", action="store_true")
     args = ap.parse_args()
     if args.changed:
         return 0 if changed(args.base) else 1
+    if args.stale:
+        for line in stale():
+            print(f"- {line}")
+        return 1 if stale() else 0
     lines, warn = [], []
 
     # ── BOT districts (money)
@@ -127,6 +150,7 @@ def main() -> int:
             lines.append(f"- {label} (`{ind}`): latest year {latest(w0) or '–'} → {latest(w1)}")
         lines.append("")
 
+    warn += stale()
     head = ["## Monthly data refresh", ""]
     if warn:
         head += ["> [!WARNING]"] + [f"> {w}" for w in warn] + [""]

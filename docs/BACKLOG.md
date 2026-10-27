@@ -21,8 +21,13 @@ Ship small, then widen. Top to bottom.
 
 - [x] Hosting: GitHub Pages, deployed by `pages.yml` on push to `main`
 - [ ] Search Console + sitemap (note: robots.txt only counts at a domain root, so a sub-path site relies on the sitemap being submitted)
-- [ ] Monthly refresh workflow: run the four ETLs → open a data PR (never auto-merge)
-- [ ] ETL regression tests with trimmed real fixtures (BOT layouts, SSO regions, DOPA duplicate table)
+- [x] Monthly refresh workflow: tests → four ETLs → build → data PR with a summary (never auto-merge);
+      failed sources → `source-failed` issue, overdue → `source-stale` issue
+- [x] Parser regression tests + CI (`test.yml`)
+- [x] DOPA switched to stat.bora (December 2025, one year fresher; 2020–2024 identical to the catalog)
+- [ ] DOPA is unreachable from GitHub's runners: refresh it yearly from Thailand, or run a self-hosted runner there
+- [ ] Owner setting: allow Actions to open PRs (otherwise the run leaves an issue with a one-click PR link)
+- [ ] District-level population: map municipality (เทศบาล) registries to their districts, then add People to district pages
 
 ## v1.2 — Malaysia subnational (second country)
 

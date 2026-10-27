@@ -370,14 +370,13 @@ def thailand_model(P, D, sso, dopa, ctx):
         tis = p["id"]
         s, d = sso["provinces"][tis], dopa["provinces"][tis]
         pop = {int(y): v["population"] for y, v in d.items()}
-        hh = {int(y): v["households"] for y, v in d.items()}
         ins = {int(y): v["insured"] for y, v in s.items()}
         ent = {int(y): v["enterprises"] for y, v in s.items()}
         r = {
             "id": tis, "name": p["name_en"], "native": p["name_th"], "slug": slug(p["name_en"]),
             "region": p["region"],
             "people": growth(pop[dy[-1]], pop[dy[-2]]), "people_5y": growth(pop[dy[-1]], pop[dy[0]]),
-            "pop": pop[dy[-1]], "households": hh[dy[-1]], "hh_growth": growth(hh[dy[-1]], hh[dy[-2]]),
+            "pop": pop[dy[-1]],
             "jobs": growth(ins[sy[-1]], ins[sy[-2]]), "jobs_3y": growth(ins[sy[-1]], ins[sy[0]]), "insured": ins[sy[-1]],
             "biz": growth(ent[sy[-1]], ent[sy[-2]]), "biz_3y": growth(ent[sy[-1]], ent[sy[0]]), "enterprises": ent[sy[-1]],
             "firm_size": ins[sy[-1]] / ent[sy[-1]] if ent[sy[-1]] else None,
@@ -879,8 +878,7 @@ def main():
         panels = (
             lens_panel("people", pct(t["people"]), f"registered population, {base_of['people']} to {asof['people']}",
                        f"#{t.get('people_rank', '–')} of 77",
-                       [("Registered population", f"{t['pop']:,}"), ("Five-year change", pct(t["people_5y"])),
-                        ("Households", f"{t['households']:,} ({pct(t['hh_growth'])})")],
+                       [("Registered population", f"{t['pop']:,}"), ("Five-year change", pct(t["people_5y"]))],
                        chart(yr(t["pop_series"]), "Registered population, December", x_label=str, every=1, kind="dots"),
                        "Counts people at their registered address. It undercounts places people move to without re-registering.") +
             lens_panel("jobs", pct(t["jobs"]), f"formal-sector employees, {base_of['jobs']} to {asof['jobs']}",

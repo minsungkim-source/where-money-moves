@@ -53,7 +53,7 @@ jobs:
       - name: "People: DOPA registered population"
         id: dopa
         continue-on-error: true
-        run: python etl/th_dopa.py
+        run: python etl/th_dopa.py --allow-unreachable   # yearly; unreachable from overseas runners (see the script)
       - name: "Region: World Bank"
         id: wb
         continue-on-error: true
@@ -103,6 +103,15 @@ jobs:
             num=$(gh issue list --label data --state open --json number -q '.[0].number')
             if [ -n "$num" ]; then gh issue edit "$num" --body-file /tmp/ready.md; else gh issue create --title "Data ready to review: $title" --label data --body-file /tmp/ready.md; fi
             echo "PR link: $url" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Report overdue sources
+        run: |
+          if ! python etl/summary.py --stale > /tmp/stale.md; then
+            gh label create source-stale --color fbca04 --description "A source's next release is overdue" 2>/dev/null || true
+            { echo "These sources are behind their usual release. The site still shows their last data."; echo; cat /tmp/stale.md; echo; echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; } > /tmp/stale-issue.md
+            num=$(gh issue list --label source-stale --state open --json number -q '.[0].number')
+            if [ -n "$num" ]; then gh issue edit "$num" --body-file /tmp/stale-issue.md; else gh issue create --title "Data refresh: a source is overdue" --label source-stale --body-file /tmp/stale-issue.md; fi
           fi
 
       - name: Report failed sources

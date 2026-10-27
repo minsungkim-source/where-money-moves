@@ -144,27 +144,48 @@ class Sso(unittest.TestCase):
 
 class Dopa(unittest.TestCase):
     def setUp(self):
-        self.text = (FIX / "dopa-c-2567.html").read_text(encoding="utf-8")
+        self.text = (FIX / "dopa-6712cc93.txt").read_text(encoding="utf-8")   # first rows of a real file
 
-    def test_real_file(self):
-        out = th_dopa.parse(self.text, 2567)
-        self.assertEqual(len(out), 77)
-        self.assertEqual(sum(v["population"] for v in out.values()), 65951210)
+    def test_real_file_matches_the_catalog(self):
+        # catalog.dopa.go.th (the previous source) gave Phatthalung 519,440 for December 2024
+        self.assertEqual(th_dopa.parse(self.text, "2024/93"), 519440)
 
-    def test_identical_duplicate_table_is_accepted(self):                 # stat_c66 ships the table twice
-        self.assertEqual(th_dopa.parse(self.text + self.text, 2567), th_dopa.parse(self.text, 2567))
-
-    def test_different_duplicate_table_stops(self):
-        other = self.text.replace("65,951,210", "65,951,211", 1)
+    def test_male_plus_female_must_equal_total(self):
+        first, rest = self.text.split("\n", 1)
+        cells = first.split("|")
+        cells[-2] = str(int(cells[-2]) + 1)                                # grand total off by one
         with self.assertRaises(etl.ParserDriftError):
-            th_dopa.parse(self.text + other, 2567)
+            th_dopa.parse("|".join(cells) + "\n" + rest, "x")
 
-    def test_wrong_year_stops(self):
+    def test_first_row_must_be_a_province(self):
         with self.assertRaises(etl.ParserDriftError):
-            th_dopa.parse(self.text, 2568)
+            th_dopa.parse(self.text.split("\n", 1)[1], "x")
+
+    def test_year_page_links(self):
+        class Page:
+            text = '<a href="../file/6812/6812cc10.txt">x</a><a href="../file/6812/6812cc96.txt">y</a><a href="../file/6712/6712cc10.txt">z</a>'
+            def raise_for_status(self): pass
+        class S:
+            def get(self, *a, **k): return Page()
+        links = th_dopa.links_for(S(), 2025)
+        self.assertEqual(sorted(links), ["10", "96"])                       # other years' links ignored
+        self.assertTrue(links["96"].endswith("/file/6812/6812cc96.txt"))
+
+    def test_only_finished_decembers(self):
+        from datetime import date
+        self.assertEqual(th_dopa.december_years(date(2026, 10, 27))[-1], 2025)
 
 
 class Summary(unittest.TestCase):
+    def test_yearly_staleness_window(self):
+        from datetime import date
+        from unittest import mock
+        dopa = {"years": [2023, 2024]}
+        with mock.patch.object(summary, "new", lambda n: dopa if n == "th_dopa.json" else None):
+            self.assertEqual(summary.stale(date(2026, 3, 1)), [])           # Dec 2024 is the newest expected
+            self.assertEqual(len(summary.stale(date(2026, 8, 1))), 1)       # Dec 2025 overdue from July 2026
+
+
     def test_timestamps_are_not_a_change(self):
         a = {"generated_at": "2026-10-01T00:00:00", "latest": "2026-07", "x": [{"generated_at": 1, "v": 2}]}
         b = json.loads(json.dumps(a)); b["generated_at"] = "2026-11-15T03:00:00"; b["x"][0]["generated_at"] = 9
