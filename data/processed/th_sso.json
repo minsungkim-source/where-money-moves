@@ -1,0 +1,1402 @@
+{
+"source": {
+"name": "Social Security Office — enterprises and Section 33 insured persons by province",
+"url": "https://catalog.sso.go.th/dataset/ee936249-501c-479f-8e8d-4e2a76805d38",
+"license": "Open Data Common",
+"as_of": "2025-12"
+},
+"years": [
+2022,
+2023,
+2024,
+2025
+],
+"provinces": {
+"10": {
+"2022": {
+"enterprises": 157379,
+"insured": 3988488
+},
+"2023": {
+"enterprises": 160826,
+"insured": 4124718
+},
+"2024": {
+"enterprises": 162845,
+"insured": 4180965
+},
+"2025": {
+"enterprises": 157468,
+"insured": 4167672
+}
+},
+"11": {
+"2022": {
+"enterprises": 26647,
+"insured": 770548
+},
+"2023": {
+"enterprises": 27450,
+"insured": 784268
+},
+"2024": {
+"enterprises": 28043,
+"insured": 784132
+},
+"2025": {
+"enterprises": 28726,
+"insured": 780429
+}
+},
+"12": {
+"2022": {
+"enterprises": 21683,
+"insured": 364455
+},
+"2023": {
+"enterprises": 22247,
+"insured": 378046
+},
+"2024": {
+"enterprises": 22991,
+"insured": 387267
+},
+"2025": {
+"enterprises": 23395,
+"insured": 386506
+}
+},
+"13": {
+"2022": {
+"enterprises": 19715,
+"insured": 462208
+},
+"2023": {
+"enterprises": 20413,
+"insured": 472407
+},
+"2024": {
+"enterprises": 21163,
+"insured": 474300
+},
+"2025": {
+"enterprises": 21752,
+"insured": 479417
+}
+},
+"14": {
+"2022": {
+"enterprises": 6875,
+"insured": 326002
+},
+"2023": {
+"enterprises": 7029,
+"insured": 314466
+},
+"2024": {
+"enterprises": 7216,
+"insured": 319428
+},
+"2025": {
+"enterprises": 7369,
+"insured": 323395
+}
+},
+"15": {
+"2022": {
+"enterprises": 1234,
+"insured": 14190
+},
+"2023": {
+"enterprises": 1274,
+"insured": 14490
+},
+"2024": {
+"enterprises": 1262,
+"insured": 14576
+},
+"2025": {
+"enterprises": 1248,
+"insured": 14780
+}
+},
+"16": {
+"2022": {
+"enterprises": 2705,
+"insured": 78703
+},
+"2023": {
+"enterprises": 2783,
+"insured": 80425
+},
+"2024": {
+"enterprises": 2795,
+"insured": 79190
+},
+"2025": {
+"enterprises": 2804,
+"insured": 78216
+}
+},
+"17": {
+"2022": {
+"enterprises": 1049,
+"insured": 20824
+},
+"2023": {
+"enterprises": 1058,
+"insured": 19873
+},
+"2024": {
+"enterprises": 1015,
+"insured": 20065
+},
+"2025": {
+"enterprises": 1001,
+"insured": 19159
+}
+},
+"18": {
+"2022": {
+"enterprises": 1128,
+"insured": 17816
+},
+"2023": {
+"enterprises": 1115,
+"insured": 17736
+},
+"2024": {
+"enterprises": 1119,
+"insured": 18884
+},
+"2025": {
+"enterprises": 1101,
+"insured": 19776
+}
+},
+"19": {
+"2022": {
+"enterprises": 4996,
+"insured": 169625
+},
+"2023": {
+"enterprises": 5074,
+"insured": 168876
+},
+"2024": {
+"enterprises": 5142,
+"insured": 168039
+},
+"2025": {
+"enterprises": 5183,
+"insured": 170208
+}
+},
+"20": {
+"2022": {
+"enterprises": 25555,
+"insured": 787985
+},
+"2023": {
+"enterprises": 27075,
+"insured": 811526
+},
+"2024": {
+"enterprises": 28129,
+"insured": 825813
+},
+"2025": {
+"enterprises": 29636,
+"insured": 870039
+}
+},
+"21": {
+"2022": {
+"enterprises": 10470,
+"insured": 474701
+},
+"2023": {
+"enterprises": 10794,
+"insured": 480699
+},
+"2024": {
+"enterprises": 11313,
+"insured": 485983
+},
+"2025": {
+"enterprises": 11869,
+"insured": 504977
+}
+},
+"22": {
+"2022": {
+"enterprises": 3643,
+"insured": 34760
+},
+"2023": {
+"enterprises": 3591,
+"insured": 35717
+},
+"2024": {
+"enterprises": 3544,
+"insured": 35805
+},
+"2025": {
+"enterprises": 3481,
+"insured": 35020
+}
+},
+"23": {
+"2022": {
+"enterprises": 1332,
+"insured": 14880
+},
+"2023": {
+"enterprises": 1374,
+"insured": 15500
+},
+"2024": {
+"enterprises": 1371,
+"insured": 15880
+},
+"2025": {
+"enterprises": 1381,
+"insured": 15513
+}
+},
+"24": {
+"2022": {
+"enterprises": 5636,
+"insured": 250448
+},
+"2023": {
+"enterprises": 5741,
+"insured": 251653
+},
+"2024": {
+"enterprises": 5866,
+"insured": 249702
+},
+"2025": {
+"enterprises": 6022,
+"insured": 257494
+}
+},
+"25": {
+"2022": {
+"enterprises": 3039,
+"insured": 149005
+},
+"2023": {
+"enterprises": 3099,
+"insured": 148113
+},
+"2024": {
+"enterprises": 3147,
+"insured": 148705
+},
+"2025": {
+"enterprises": 3178,
+"insured": 153859
+}
+},
+"26": {
+"2022": {
+"enterprises": 1362,
+"insured": 25158
+},
+"2023": {
+"enterprises": 1362,
+"insured": 25611
+},
+"2024": {
+"enterprises": 1401,
+"insured": 25789
+},
+"2025": {
+"enterprises": 1364,
+"insured": 25791
+}
+},
+"27": {
+"2022": {
+"enterprises": 1618,
+"insured": 22561
+},
+"2023": {
+"enterprises": 1616,
+"insured": 23044
+},
+"2024": {
+"enterprises": 1598,
+"insured": 23160
+},
+"2025": {
+"enterprises": 1610,
+"insured": 23310
+}
+},
+"30": {
+"2022": {
+"enterprises": 9998,
+"insured": 259840
+},
+"2023": {
+"enterprises": 10270,
+"insured": 256869
+},
+"2024": {
+"enterprises": 10409,
+"insured": 259376
+},
+"2025": {
+"enterprises": 10554,
+"insured": 255421
+}
+},
+"31": {
+"2022": {
+"enterprises": 2893,
+"insured": 47483
+},
+"2023": {
+"enterprises": 2938,
+"insured": 47380
+},
+"2024": {
+"enterprises": 2919,
+"insured": 47207
+},
+"2025": {
+"enterprises": 2916,
+"insured": 46925
+}
+},
+"32": {
+"2022": {
+"enterprises": 2832,
+"insured": 42839
+},
+"2023": {
+"enterprises": 2841,
+"insured": 43043
+},
+"2024": {
+"enterprises": 2805,
+"insured": 43646
+},
+"2025": {
+"enterprises": 2815,
+"insured": 43812
+}
+},
+"33": {
+"2022": {
+"enterprises": 2363,
+"insured": 33608
+},
+"2023": {
+"enterprises": 2419,
+"insured": 33856
+},
+"2024": {
+"enterprises": 2461,
+"insured": 34115
+},
+"2025": {
+"enterprises": 2431,
+"insured": 34501
+}
+},
+"34": {
+"2022": {
+"enterprises": 4418,
+"insured": 77254
+},
+"2023": {
+"enterprises": 4523,
+"insured": 75584
+},
+"2024": {
+"enterprises": 4572,
+"insured": 77752
+},
+"2025": {
+"enterprises": 4552,
+"insured": 77510
+}
+},
+"35": {
+"2022": {
+"enterprises": 1092,
+"insured": 14922
+},
+"2023": {
+"enterprises": 1115,
+"insured": 14899
+},
+"2024": {
+"enterprises": 1107,
+"insured": 15203
+},
+"2025": {
+"enterprises": 1091,
+"insured": 15787
+}
+},
+"36": {
+"2022": {
+"enterprises": 2202,
+"insured": 31687
+},
+"2023": {
+"enterprises": 2227,
+"insured": 31784
+},
+"2024": {
+"enterprises": 2258,
+"insured": 32752
+},
+"2025": {
+"enterprises": 2250,
+"insured": 33323
+}
+},
+"37": {
+"2022": {
+"enterprises": 853,
+"insured": 10159
+},
+"2023": {
+"enterprises": 856,
+"insured": 9550
+},
+"2024": {
+"enterprises": 848,
+"insured": 10565
+},
+"2025": {
+"enterprises": 833,
+"insured": 10614
+}
+},
+"38": {
+"2022": {
+"enterprises": 722,
+"insured": 9911
+},
+"2023": {
+"enterprises": 741,
+"insured": 9863
+},
+"2024": {
+"enterprises": 732,
+"insured": 9998
+},
+"2025": {
+"enterprises": 726,
+"insured": 10302
+}
+},
+"39": {
+"2022": {
+"enterprises": 937,
+"insured": 15656
+},
+"2023": {
+"enterprises": 957,
+"insured": 15518
+},
+"2024": {
+"enterprises": 973,
+"insured": 15781
+},
+"2025": {
+"enterprises": 975,
+"insured": 16163
+}
+},
+"40": {
+"2022": {
+"enterprises": 6741,
+"insured": 139834
+},
+"2023": {
+"enterprises": 6946,
+"insured": 136560
+},
+"2024": {
+"enterprises": 7119,
+"insured": 140156
+},
+"2025": {
+"enterprises": 7193,
+"insured": 142818
+}
+},
+"41": {
+"2022": {
+"enterprises": 4670,
+"insured": 65255
+},
+"2023": {
+"enterprises": 4690,
+"insured": 65123
+},
+"2024": {
+"enterprises": 4726,
+"insured": 65338
+},
+"2025": {
+"enterprises": 4711,
+"insured": 65843
+}
+},
+"42": {
+"2022": {
+"enterprises": 1753,
+"insured": 23352
+},
+"2023": {
+"enterprises": 1808,
+"insured": 23689
+},
+"2024": {
+"enterprises": 1825,
+"insured": 23177
+},
+"2025": {
+"enterprises": 1797,
+"insured": 22797
+}
+},
+"43": {
+"2022": {
+"enterprises": 1662,
+"insured": 17962
+},
+"2023": {
+"enterprises": 1673,
+"insured": 17464
+},
+"2024": {
+"enterprises": 1664,
+"insured": 17437
+},
+"2025": {
+"enterprises": 1633,
+"insured": 17395
+}
+},
+"44": {
+"2022": {
+"enterprises": 2102,
+"insured": 32266
+},
+"2023": {
+"enterprises": 2102,
+"insured": 32024
+},
+"2024": {
+"enterprises": 2159,
+"insured": 31660
+},
+"2025": {
+"enterprises": 2139,
+"insured": 32667
+}
+},
+"45": {
+"2022": {
+"enterprises": 2766,
+"insured": 37541
+},
+"2023": {
+"enterprises": 2908,
+"insured": 37484
+},
+"2024": {
+"enterprises": 2872,
+"insured": 39053
+},
+"2025": {
+"enterprises": 2926,
+"insured": 39674
+}
+},
+"46": {
+"2022": {
+"enterprises": 1749,
+"insured": 27661
+},
+"2023": {
+"enterprises": 1782,
+"insured": 27032
+},
+"2024": {
+"enterprises": 1799,
+"insured": 27748
+},
+"2025": {
+"enterprises": 1791,
+"insured": 28191
+}
+},
+"47": {
+"2022": {
+"enterprises": 2625,
+"insured": 36216
+},
+"2023": {
+"enterprises": 2629,
+"insured": 34074
+},
+"2024": {
+"enterprises": 2626,
+"insured": 37323
+},
+"2025": {
+"enterprises": 2579,
+"insured": 37751
+}
+},
+"48": {
+"2022": {
+"enterprises": 1513,
+"insured": 20652
+},
+"2023": {
+"enterprises": 1495,
+"insured": 16663
+},
+"2024": {
+"enterprises": 1490,
+"insured": 20600
+},
+"2025": {
+"enterprises": 1495,
+"insured": 21220
+}
+},
+"49": {
+"2022": {
+"enterprises": 1367,
+"insured": 15103
+},
+"2023": {
+"enterprises": 1375,
+"insured": 15061
+},
+"2024": {
+"enterprises": 1394,
+"insured": 15563
+},
+"2025": {
+"enterprises": 1374,
+"insured": 15480
+}
+},
+"50": {
+"2022": {
+"enterprises": 19419,
+"insured": 234626
+},
+"2023": {
+"enterprises": 20099,
+"insured": 243408
+},
+"2024": {
+"enterprises": 20452,
+"insured": 251722
+},
+"2025": {
+"enterprises": 20783,
+"insured": 251913
+}
+},
+"51": {
+"2022": {
+"enterprises": 3223,
+"insured": 83406
+},
+"2023": {
+"enterprises": 3343,
+"insured": 82280
+},
+"2024": {
+"enterprises": 3321,
+"insured": 82175
+},
+"2025": {
+"enterprises": 3292,
+"insured": 83155
+}
+},
+"52": {
+"2022": {
+"enterprises": 3354,
+"insured": 48049
+},
+"2023": {
+"enterprises": 3347,
+"insured": 47560
+},
+"2024": {
+"enterprises": 3307,
+"insured": 49757
+},
+"2025": {
+"enterprises": 3548,
+"insured": 51050
+}
+},
+"53": {
+"2022": {
+"enterprises": 1590,
+"insured": 19482
+},
+"2023": {
+"enterprises": 1600,
+"insured": 19829
+},
+"2024": {
+"enterprises": 1610,
+"insured": 20441
+},
+"2025": {
+"enterprises": 1584,
+"insured": 19777
+}
+},
+"54": {
+"2022": {
+"enterprises": 1824,
+"insured": 18865
+},
+"2023": {
+"enterprises": 1834,
+"insured": 18011
+},
+"2024": {
+"enterprises": 1814,
+"insured": 18538
+},
+"2025": {
+"enterprises": 1808,
+"insured": 18230
+}
+},
+"55": {
+"2022": {
+"enterprises": 1850,
+"insured": 16642
+},
+"2023": {
+"enterprises": 1784,
+"insured": 16819
+},
+"2024": {
+"enterprises": 1800,
+"insured": 16780
+},
+"2025": {
+"enterprises": 1795,
+"insured": 16949
+}
+},
+"56": {
+"2022": {
+"enterprises": 1696,
+"insured": 17270
+},
+"2023": {
+"enterprises": 1742,
+"insured": 18115
+},
+"2024": {
+"enterprises": 1728,
+"insured": 18631
+},
+"2025": {
+"enterprises": 1713,
+"insured": 18816
+}
+},
+"57": {
+"2022": {
+"enterprises": 6977,
+"insured": 71580
+},
+"2023": {
+"enterprises": 6922,
+"insured": 73405
+},
+"2024": {
+"enterprises": 6950,
+"insured": 74725
+},
+"2025": {
+"enterprises": 6981,
+"insured": 76051
+}
+},
+"58": {
+"2022": {
+"enterprises": 913,
+"insured": 7912
+},
+"2023": {
+"enterprises": 954,
+"insured": 7940
+},
+"2024": {
+"enterprises": 999,
+"insured": 8063
+},
+"2025": {
+"enterprises": 1100,
+"insured": 8752
+}
+},
+"60": {
+"2022": {
+"enterprises": 3884,
+"insured": 57196
+},
+"2023": {
+"enterprises": 3869,
+"insured": 58345
+},
+"2024": {
+"enterprises": 3875,
+"insured": 57708
+},
+"2025": {
+"enterprises": 3874,
+"insured": 58647
+}
+},
+"61": {
+"2022": {
+"enterprises": 918,
+"insured": 10950
+},
+"2023": {
+"enterprises": 918,
+"insured": 11700
+},
+"2024": {
+"enterprises": 913,
+"insured": 11547
+},
+"2025": {
+"enterprises": 921,
+"insured": 11408
+}
+},
+"62": {
+"2022": {
+"enterprises": 2285,
+"insured": 33451
+},
+"2023": {
+"enterprises": 2297,
+"insured": 32675
+},
+"2024": {
+"enterprises": 2306,
+"insured": 33192
+},
+"2025": {
+"enterprises": 2304,
+"insured": 33633
+}
+},
+"63": {
+"2022": {
+"enterprises": 2477,
+"insured": 32509
+},
+"2023": {
+"enterprises": 2492,
+"insured": 35267
+},
+"2024": {
+"enterprises": 2498,
+"insured": 37009
+},
+"2025": {
+"enterprises": 2541,
+"insured": 37764
+}
+},
+"64": {
+"2022": {
+"enterprises": 1572,
+"insured": 18468
+},
+"2023": {
+"enterprises": 1596,
+"insured": 18532
+},
+"2024": {
+"enterprises": 1608,
+"insured": 18894
+},
+"2025": {
+"enterprises": 1606,
+"insured": 19151
+}
+},
+"65": {
+"2022": {
+"enterprises": 3716,
+"insured": 62895
+},
+"2023": {
+"enterprises": 3717,
+"insured": 63830
+},
+"2024": {
+"enterprises": 3754,
+"insured": 64742
+},
+"2025": {
+"enterprises": 3781,
+"insured": 65000
+}
+},
+"66": {
+"2022": {
+"enterprises": 1669,
+"insured": 21150
+},
+"2023": {
+"enterprises": 1700,
+"insured": 20751
+},
+"2024": {
+"enterprises": 1692,
+"insured": 23061
+},
+"2025": {
+"enterprises": 1669,
+"insured": 23119
+}
+},
+"67": {
+"2022": {
+"enterprises": 2561,
+"insured": 41375
+},
+"2023": {
+"enterprises": 2582,
+"insured": 42105
+},
+"2024": {
+"enterprises": 2602,
+"insured": 42338
+},
+"2025": {
+"enterprises": 2637,
+"insured": 42953
+}
+},
+"70": {
+"2022": {
+"enterprises": 4991,
+"insured": 122898
+},
+"2023": {
+"enterprises": 5020,
+"insured": 126336
+},
+"2024": {
+"enterprises": 5011,
+"insured": 132225
+},
+"2025": {
+"enterprises": 5001,
+"insured": 139820
+}
+},
+"71": {
+"2022": {
+"enterprises": 3316,
+"insured": 71775
+},
+"2023": {
+"enterprises": 3367,
+"insured": 73545
+},
+"2024": {
+"enterprises": 3395,
+"insured": 72871
+},
+"2025": {
+"enterprises": 3448,
+"insured": 75129
+}
+},
+"72": {
+"2022": {
+"enterprises": 3935,
+"insured": 50324
+},
+"2023": {
+"enterprises": 3932,
+"insured": 51359
+},
+"2024": {
+"enterprises": 3912,
+"insured": 52353
+},
+"2025": {
+"enterprises": 3841,
+"insured": 52489
+}
+},
+"73": {
+"2022": {
+"enterprises": 10144,
+"insured": 254861
+},
+"2023": {
+"enterprises": 10351,
+"insured": 261360
+},
+"2024": {
+"enterprises": 10466,
+"insured": 263442
+},
+"2025": {
+"enterprises": 10555,
+"insured": 264865
+}
+},
+"74": {
+"2022": {
+"enterprises": 12366,
+"insured": 481201
+},
+"2023": {
+"enterprises": 12683,
+"insured": 479197
+},
+"2024": {
+"enterprises": 13069,
+"insured": 491431
+},
+"2025": {
+"enterprises": 13426,
+"insured": 491132
+}
+},
+"75": {
+"2022": {
+"enterprises": 1575,
+"insured": 20779
+},
+"2023": {
+"enterprises": 1548,
+"insured": 21256
+},
+"2024": {
+"enterprises": 1527,
+"insured": 21291
+},
+"2025": {
+"enterprises": 1532,
+"insured": 20968
+}
+},
+"76": {
+"2022": {
+"enterprises": 2760,
+"insured": 68314
+},
+"2023": {
+"enterprises": 2821,
+"insured": 65972
+},
+"2024": {
+"enterprises": 2810,
+"insured": 68855
+},
+"2025": {
+"enterprises": 2805,
+"insured": 70856
+}
+},
+"77": {
+"2022": {
+"enterprises": 3685,
+"insured": 62467
+},
+"2023": {
+"enterprises": 3802,
+"insured": 61072
+},
+"2024": {
+"enterprises": 3941,
+"insured": 62186
+},
+"2025": {
+"enterprises": 3954,
+"insured": 61529
+}
+},
+"80": {
+"2022": {
+"enterprises": 4749,
+"insured": 68019
+},
+"2023": {
+"enterprises": 4808,
+"insured": 69191
+},
+"2024": {
+"enterprises": 4860,
+"insured": 69588
+},
+"2025": {
+"enterprises": 4857,
+"insured": 68979
+}
+},
+"81": {
+"2022": {
+"enterprises": 3024,
+"insured": 40814
+},
+"2023": {
+"enterprises": 3297,
+"insured": 46298
+},
+"2024": {
+"enterprises": 3422,
+"insured": 48319
+},
+"2025": {
+"enterprises": 3593,
+"insured": 49858
+}
+},
+"82": {
+"2022": {
+"enterprises": 1457,
+"insured": 22025
+},
+"2023": {
+"enterprises": 1504,
+"insured": 24039
+},
+"2024": {
+"enterprises": 1549,
+"insured": 25547
+},
+"2025": {
+"enterprises": 1601,
+"insured": 26637
+}
+},
+"83": {
+"2022": {
+"enterprises": 10840,
+"insured": 130984
+},
+"2023": {
+"enterprises": 13084,
+"insured": 161540
+},
+"2024": {
+"enterprises": 14335,
+"insured": 183361
+},
+"2025": {
+"enterprises": 14867,
+"insured": 192294
+}
+},
+"84": {
+"2022": {
+"enterprises": 7967,
+"insured": 113794
+},
+"2023": {
+"enterprises": 8821,
+"insured": 124679
+},
+"2024": {
+"enterprises": 9353,
+"insured": 130353
+},
+"2025": {
+"enterprises": 9675,
+"insured": 130523
+}
+},
+"85": {
+"2022": {
+"enterprises": 1969,
+"insured": 24804
+},
+"2023": {
+"enterprises": 2247,
+"insured": 25654
+},
+"2024": {
+"enterprises": 2274,
+"insured": 25115
+},
+"2025": {
+"enterprises": 2251,
+"insured": 25874
+}
+},
+"86": {
+"2022": {
+"enterprises": 2331,
+"insured": 35305
+},
+"2023": {
+"enterprises": 2302,
+"insured": 35481
+},
+"2024": {
+"enterprises": 2321,
+"insured": 35272
+},
+"2025": {
+"enterprises": 2338,
+"insured": 34951
+}
+},
+"90": {
+"2022": {
+"enterprises": 9685,
+"insured": 195374
+},
+"2023": {
+"enterprises": 9745,
+"insured": 193094
+},
+"2024": {
+"enterprises": 9925,
+"insured": 198822
+},
+"2025": {
+"enterprises": 10039,
+"insured": 198378
+}
+},
+"91": {
+"2022": {
+"enterprises": 957,
+"insured": 13550
+},
+"2023": {
+"enterprises": 958,
+"insured": 13881
+},
+"2024": {
+"enterprises": 946,
+"insured": 13356
+},
+"2025": {
+"enterprises": 940,
+"insured": 13490
+}
+},
+"92": {
+"2022": {
+"enterprises": 2821,
+"insured": 43585
+},
+"2023": {
+"enterprises": 2844,
+"insured": 43883
+},
+"2024": {
+"enterprises": 2839,
+"insured": 43692
+},
+"2025": {
+"enterprises": 2851,
+"insured": 43532
+}
+},
+"93": {
+"2022": {
+"enterprises": 1625,
+"insured": 19919
+},
+"2023": {
+"enterprises": 1627,
+"insured": 20039
+},
+"2024": {
+"enterprises": 1667,
+"insured": 20557
+},
+"2025": {
+"enterprises": 1676,
+"insured": 20514
+}
+},
+"94": {
+"2022": {
+"enterprises": 1677,
+"insured": 23921
+},
+"2023": {
+"enterprises": 1739,
+"insured": 24708
+},
+"2024": {
+"enterprises": 1747,
+"insured": 24585
+},
+"2025": {
+"enterprises": 1751,
+"insured": 24547
+}
+},
+"95": {
+"2022": {
+"enterprises": 1610,
+"insured": 24227
+},
+"2023": {
+"enterprises": 1646,
+"insured": 24857
+},
+"2024": {
+"enterprises": 1657,
+"insured": 24253
+},
+"2025": {
+"enterprises": 1653,
+"insured": 24559
+}
+},
+"96": {
+"2022": {
+"enterprises": 1563,
+"insured": 21717
+},
+"2023": {
+"enterprises": 1613,
+"insured": 22216
+},
+"2024": {
+"enterprises": 1592,
+"insured": 22182
+},
+"2025": {
+"enterprises": 1607,
+"insured": 22702
+}
+}
+}
+}
