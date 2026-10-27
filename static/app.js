@@ -156,7 +156,11 @@
     tabs.classList.add("ready");
     placeInk(tabs);
     addEventListener("resize", function () { placeInk(tabs); });
-    if (doc.fonts) doc.fonts.ready.then(function () { placeInk(tabs); });
+    // the web font can land after fonts.ready resolves; re-measure whenever a tab changes size
+    if ("ResizeObserver" in window) {
+      var ro = new ResizeObserver(function () { placeInk(tabs); });
+      $$("button", tabs).forEach(function (b) { ro.observe(b); });
+    }
     function set(lens, quiet) {
       $$("button", tabs).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.lens === lens)); });
       placeInk(tabs);
