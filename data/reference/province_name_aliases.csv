@@ -1,0 +1,29 @@
+# 소스별 영문 주명 → TIS-1099 별칭 테이블
+#
+# thailand-canonical-admin-names의 name_alternates_en으로 흡수되지 않는 표기만 담는다.
+# 2026-08-26 기준: BOT 77개 중 11개, NESDC 77개 중 4개가 여기서 해소된다.
+#
+# 규칙
+#   · 여기는 **조인 별칭**이지 이름 치환이 아니다. 표시 이름은 항상 name_en_canonical을 쓴다.
+#   · join_key는 admin_ref.norm()의 출력 (소문자 + 알파벳만, 괄호 제거).
+#   · source는 참고용 기록이다 — 별칭은 모든 소스에 공통으로 적용된다.
+#     같은 join_key가 소스별로 다른 주를 가리키는 일은 없어야 하고, 생기면 로드가 실패한다.
+#   · 새 이름이 안 붙으면 여기에 한 줄 추가하고 근거를 note에 남긴다.
+#     소스의 표기를 코드에서 문자열 치환으로 고치지 마라 — validate.py가 잡을 수 없게 된다.
+#   · 상류(크로스워크)가 별칭을 흡수하면 여기서 지운다. admin_ref.load()가 중복을 경고한다.
+source,join_key,tis1099_code,name_en_canonical,source_spelling,note
+bot,trad,23,Trat,Trad,최종 자음 t를 d로 표기
+bot,prachuapkhirikhun,77,Prachuap Khiri Khan,Prachuapkhirikhun,khan을 khun으로 표기 + 무공백
+bot,ayuthaya,14,Phra Nakhon Si Ayutthaya,Ayuthaya,BOT는 축약형만 쓴다 (Phra Nakhon Si 생략)
+bot,sakaew,27,Sa Kaeo,Sakaew,kaeo를 kaew로 표기
+bot,mahasarakam,44,Maha Sarakham,Mahasarakam,kham을 kam으로 표기
+bot,srisaket,33,Si Sa Ket,Srisaket,Si를 Sri로 표기
+bot,nongbuarampu,39,Nong Bua Lam Phu,Nongbuarampu,Lam을 ram으로 Phu를 pu로 표기
+bot,chiengrai,57,Chiang Rai,Chiengrai,Chiang을 Chieng으로 표기
+bot,chiengmai,50,Chiang Mai,Chiengmai,Chiang을 Chieng으로 표기
+bot,phrea,54,Phrae,Phrea,ae를 ea로 도치
+bot,satul,91,Satun,Satul,최종 자음 n을 l로 표기
+nesdc,amnatchareon,37,Amnat Charoen,AMNAT CHAREON,charoen을 chareon으로 도치
+nesdc,phachuapkhirikhan,77,Prachuap Khiri Khan,PHACHUAP KHIRI KHAN,어두 Pr을 Ph로 표기
+nesdc,phranakhonsriayuthaya,14,Phra Nakhon Si Ayutthaya,PHRA NAKHON SRI AYUTHAYA,Si를 Sri로 + Ayutthaya의 t 하나 생략
+nesdc,bangkokmetropolis,10,Bangkok,BANGKOK METROPOLIS,행정 명칭 전체를 쓴다

@@ -1,0 +1,16 @@
+# BOT 군별 파일의 군 이름 → TIS-1099 군 코드 별칭
+#
+# etl.py의 퍼지 매칭(주 안에서만, 0.86 이상 + 차점과 0.08 이상 차이)이 못 붙인 표기만 담는다.
+# 코드에서 문자열을 치환하지 말고 여기에 한 줄 추가하고 근거를 note에 남긴다.
+province_tis,district_raw,district_tis,note
+10,Khannayaow,1043,Khanna Yao — 'yaow' 표기
+10,Pravet,1032,Prawet — w를 v로 표기
+10,Ratchathewi,1037,크로스워크는 'Rat Thewi'. 통용 표기는 Ratchathewi (ราชเทวี)
+10,Saimei,1042,Sai Mai — 'mei' 표기
+12,#N/A,1203,2023-05~12 시트의 엑셀 수식 오류. 위치(Bang Kruai 다음 · Pakkret 앞)와 값 연속성으로 Bang Yai(บางใหญ่) 확인
+14,Bangpain,1406,Bang Pa-In — Bang Pahan(1407)과 점수가 비슷해 자동 매칭을 거부했다
+30,Sikhiu,3020,Si Khio — 'khiu' 표기
+38,Mueang Bueng Kan,3801,크로스워크 name_en이 'Bueng Kan'(Mueang 생략). name_th는 เมืองบึงกาฬ
+54,Muang Phrea,5401,Mueang Phrae. 크로스워크에 5401·5402가 둘 다 'Mueang Phrae'로 적혀 있다(5402는 ร้องกวาง Rong Kwang — 상류 오류)
+57,Maesai,5709,Mae Sai — Mae Suai(5710)와 점수가 비슷해 자동 매칭을 거부했다
+71,Thamaung,7106,Tha Muang — 'maung' 표기

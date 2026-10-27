@@ -1,0 +1,314 @@
+{
+"source": "NESDC GPP 2024 (via blindspot-th)",
+"year": 2024,
+"provinces": {
+"10": {
+"population": 9106136.346,
+"gpp_per_capita": 697528.7228
+},
+"11": {
+"population": 2402758.5245,
+"gpp_per_capita": 320202.6511
+},
+"12": {
+"population": 1893979.0239,
+"gpp_per_capita": 213991.8646
+},
+"13": {
+"population": 1893438.2751,
+"gpp_per_capita": 247105.1611
+},
+"14": {
+"population": 920418.4188,
+"gpp_per_capita": 438290.7818
+},
+"15": {
+"population": 242262.1068,
+"gpp_per_capita": 134084.7393
+},
+"16": {
+"population": 768586.6462,
+"gpp_per_capita": 151272.606
+},
+"17": {
+"population": 181798.8769,
+"gpp_per_capita": 156355.6571
+},
+"18": {
+"population": 285238.013,
+"gpp_per_capita": 168715.6685
+},
+"19": {
+"population": 767939.9095,
+"gpp_per_capita": 328344.6106
+},
+"20": {
+"population": 2050416.319,
+"gpp_per_capita": 601976.6518
+},
+"21": {
+"population": 1150315.391,
+"gpp_per_capita": 956134.5067
+},
+"22": {
+"population": 578488.7006,
+"gpp_per_capita": 270583.7449
+},
+"23": {
+"population": 282711.2061,
+"gpp_per_capita": 187712.0382
+},
+"24": {
+"population": 948155.1714,
+"gpp_per_capita": 457059.1556
+},
+"25": {
+"population": 673744.7216,
+"gpp_per_capita": 361644.8018
+},
+"26": {
+"population": 266082.1099,
+"gpp_per_capita": 129203.961
+},
+"27": {
+"population": 683028.1692,
+"gpp_per_capita": 83912.6366
+},
+"30": {
+"population": 2485523.7579,
+"gpp_per_capita": 140498.9525
+},
+"31": {
+"population": 1174676.4383,
+"gpp_per_capita": 94089.6678
+},
+"32": {
+"population": 1023838.5625,
+"gpp_per_capita": 90895.3306
+},
+"33": {
+"population": 910619.596,
+"gpp_per_capita": 94693.3935
+},
+"34": {
+"population": 1723544.8842,
+"gpp_per_capita": 86241.8751
+},
+"35": {
+"population": 439974.3568,
+"gpp_per_capita": 78405.2254
+},
+"36": {
+"population": 909694.8163,
+"gpp_per_capita": 89475.015
+},
+"37": {
+"population": 280080.6861,
+"gpp_per_capita": 92770.3075
+},
+"38": {
+"population": 354503.1608,
+"gpp_per_capita": 102107.4512
+},
+"39": {
+"population": 466458.5266,
+"gpp_per_capita": 74389.6468
+},
+"40": {
+"population": 1702090.5924,
+"gpp_per_capita": 140254.9021
+},
+"41": {
+"population": 1240764.9197,
+"gpp_per_capita": 106881.8362
+},
+"42": {
+"population": 531793.4965,
+"gpp_per_capita": 128490.6316
+},
+"43": {
+"population": 454501.1329,
+"gpp_per_capita": 120203.0934
+},
+"44": {
+"population": 757396.2933,
+"gpp_per_capita": 95286.0618
+},
+"45": {
+"population": 1032228.7875,
+"gpp_per_capita": 86446.9126
+},
+"46": {
+"population": 774829.8805,
+"gpp_per_capita": 86650.0826
+},
+"47": {
+"population": 902051.9033,
+"gpp_per_capita": 84214.6282
+},
+"48": {
+"population": 535108.2408,
+"gpp_per_capita": 104923.909
+},
+"49": {
+"population": 436185.1575,
+"gpp_per_capita": 75520.0407
+},
+"50": {
+"population": 1786306.9032,
+"gpp_per_capita": 164478.681
+},
+"51": {
+"population": 385030.5582,
+"gpp_per_capita": 244959.6433
+},
+"52": {
+"population": 681911.1967,
+"gpp_per_capita": 106732.5347
+},
+"53": {
+"population": 393857.4155,
+"gpp_per_capita": 121622.8056
+},
+"54": {
+"population": 357363.1851,
+"gpp_per_capita": 92993.1629
+},
+"55": {
+"population": 432781.7461,
+"gpp_per_capita": 90496.5029
+},
+"56": {
+"population": 351380.5827,
+"gpp_per_capita": 114152.69
+},
+"57": {
+"population": 1126730.7692,
+"gpp_per_capita": 107723.9979
+},
+"58": {
+"population": 245518.7462,
+"gpp_per_capita": 72789.8747
+},
+"60": {
+"population": 887437.743,
+"gpp_per_capita": 145021.3162
+},
+"61": {
+"population": 266916.0252,
+"gpp_per_capita": 128660.3434
+},
+"62": {
+"population": 778728.07,
+"gpp_per_capita": 166945.1027
+},
+"63": {
+"population": 536849.8088,
+"gpp_per_capita": 139020.2956
+},
+"64": {
+"population": 601683.4637,
+"gpp_per_capita": 95730.5289
+},
+"65": {
+"population": 891012.2733,
+"gpp_per_capita": 130253.9619
+},
+"66": {
+"population": 497338.8187,
+"gpp_per_capita": 110191.589
+},
+"67": {
+"population": 891030.7313,
+"gpp_per_capita": 107129.0033
+},
+"70": {
+"population": 809984.2671,
+"gpp_per_capita": 237080.8032
+},
+"71": {
+"population": 833984.8335,
+"gpp_per_capita": 154078.2246
+},
+"72": {
+"population": 844787.3936,
+"gpp_per_capita": 126834.7454
+},
+"73": {
+"population": 1272583.5756,
+"gpp_per_capita": 316100.749
+},
+"74": {
+"population": 1109400.8223,
+"gpp_per_capita": 390951.9669
+},
+"75": {
+"population": 174116.1201,
+"gpp_per_capita": 164069.9255
+},
+"76": {
+"population": 503546.059,
+"gpp_per_capita": 156152.6667
+},
+"77": {
+"population": 485697.9291,
+"gpp_per_capita": 231844.1349
+},
+"80": {
+"population": 1532171.0825,
+"gpp_per_capita": 131209.5833
+},
+"81": {
+"population": 436386.1384,
+"gpp_per_capita": 217715.4903
+},
+"82": {
+"population": 247823.4454,
+"gpp_per_capita": 332727.0424
+},
+"83": {
+"population": 619570.1395,
+"gpp_per_capita": 439652.3146
+},
+"84": {
+"population": 1177700.783,
+"gpp_per_capita": 231171.9492
+},
+"85": {
+"population": 296019.8742,
+"gpp_per_capita": 114910.7366
+},
+"86": {
+"population": 502216.3136,
+"gpp_per_capita": 239365.8907
+},
+"90": {
+"population": 1714005.6728,
+"gpp_per_capita": 156754.8359
+},
+"91": {
+"population": 302374.2571,
+"gpp_per_capita": 119978.5938
+},
+"92": {
+"population": 634371.2398,
+"gpp_per_capita": 124722.4125
+},
+"93": {
+"population": 491122.1795,
+"gpp_per_capita": 95231.8322
+},
+"94": {
+"population": 652604.4012,
+"gpp_per_capita": 84803.7934
+},
+"95": {
+"population": 486345.0097,
+"gpp_per_capita": 121437.052
+},
+"96": {
+"population": 743014.9831,
+"gpp_per_capita": 66784.9948
+}
+}
+}

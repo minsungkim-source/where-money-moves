@@ -1,0 +1,9 @@
+# build.py가 만드는 것
+site/
+
+# ETL이 받는 원본 (BOT 공표 파일을 재배포하지 않는다)
+data/raw/
+
+.DS_Store
+__pycache__/
+.vercel/
