@@ -1,2019 +1,1557 @@
 {
 "source": {
 "name": "Department of Provincial Administration — registered population by province",
-"url": "https://catalog.dopa.go.th/dataset/221a73a3-2223-4fdc-a79e-6738ff40bb57",
-"license": "Open Data Common",
-"as_of": "2024-12"
+"url": "https://stat.bora.dopa.go.th/new_stat/webPage/statByProvince.php",
+"license": "Open Data Common (DOPA)",
+"as_of": "2025-12"
 },
 "years": [
-2019,
 2020,
 2021,
 2022,
 2023,
-2024
+2024,
+2025
 ],
 "provinces": {
 "10": {
-"2019": {
-"population": 5666264,
-"households": 3041115
-},
 "2020": {
-"population": 5588222,
-"households": 3103483
+"population": 5588222
 },
 "2021": {
-"population": 5527994,
-"households": 3147231
+"population": 5527994
 },
 "2022": {
-"population": 5494932,
-"households": 3197865
+"population": 5494932
 },
 "2023": {
-"population": 5471588,
-"households": 3251621
+"population": 5471588
 },
 "2024": {
-"population": 5455020,
-"households": 3304462
+"population": 5455020
+},
+"2025": {
+"population": 5422568
 }
 },
 "11": {
-"2019": {
-"population": 1344875,
-"households": 693926
-},
 "2020": {
-"population": 1351479,
-"households": 711804
+"population": 1351479
 },
 "2021": {
-"population": 1356449,
-"households": 733185
+"population": 1356449
 },
 "2022": {
-"population": 1360227,
-"households": 750422
+"population": 1360227
 },
 "2023": {
-"population": 1372970,
-"households": 767957
+"population": 1372970
 },
 "2024": {
-"population": 1380826,
-"households": 783230
+"population": 1380826
+},
+"2025": {
+"population": 1383924
 }
 },
 "12": {
-"2019": {
-"population": 1265387,
-"households": 701932
-},
 "2020": {
-"population": 1276745,
-"households": 718799
+"population": 1276745
 },
 "2021": {
-"population": 1288637,
-"households": 728953
+"population": 1288637
 },
 "2022": {
-"population": 1295916,
-"households": 739849
+"population": 1295916
 },
 "2023": {
-"population": 1308092,
-"households": 756885
+"population": 1308092
 },
 "2024": {
-"population": 1317919,
-"households": 768221
+"population": 1317919
+},
+"2025": {
+"population": 1322280
 }
 },
 "13": {
-"2019": {
-"population": 1163604,
-"households": 624930
-},
 "2020": {
-"population": 1176412,
-"households": 642474
+"population": 1176412
 },
 "2021": {
-"population": 1190060,
-"households": 660020
+"population": 1190060
 },
 "2022": {
-"population": 1201532,
-"households": 677046
+"population": 1201532
 },
 "2023": {
-"population": 1219199,
-"households": 698024
+"population": 1219199
 },
 "2024": {
-"population": 1236471,
-"households": 716096
+"population": 1236471
+},
+"2025": {
+"population": 1246062
 }
 },
 "14": {
-"2019": {
-"population": 820188,
-"households": 329102
-},
 "2020": {
-"population": 819088,
-"households": 336357
+"population": 819088
 },
 "2021": {
-"population": 820512,
-"households": 342753
+"population": 820512
 },
 "2022": {
-"population": 820417,
-"households": 349313
+"population": 820417
 },
 "2023": {
-"population": 822106,
-"households": 356235
+"population": 822106
 },
 "2024": {
-"population": 822720,
-"households": 362285
+"population": 822720
+},
+"2025": {
+"population": 822703
 }
 },
 "15": {
-"2019": {
-"population": 279654,
-"households": 99928
-},
 "2020": {
-"population": 276584,
-"households": 101291
+"population": 276584
 },
 "2021": {
-"population": 274763,
-"households": 102684
+"population": 274763
 },
 "2022": {
-"population": 272587,
-"households": 102932
+"population": 272587
 },
 "2023": {
-"population": 270726,
-"households": 104166
+"population": 270726
 },
 "2024": {
-"population": 268875,
-"households": 105354
+"population": 268875
+},
+"2025": {
+"population": 266923
 }
 },
 "16": {
-"2019": {
-"population": 755556,
-"households": 295486
-},
 "2020": {
-"population": 742928,
-"households": 299338
+"population": 742928
 },
 "2021": {
-"population": 739473,
-"households": 303565
+"population": 739473
 },
 "2022": {
-"population": 735293,
-"households": 299270
+"population": 735293
 },
 "2023": {
-"population": 729697,
-"households": 303427
+"population": 729697
 },
 "2024": {
-"population": 725266,
-"households": 306787
+"population": 725266
+},
+"2025": {
+"population": 721560
 }
 },
 "17": {
-"2019": {
-"population": 208446,
-"households": 77432
-},
 "2020": {
-"population": 205898,
-"households": 78410
+"population": 205898
 },
 "2021": {
-"population": 204526,
-"households": 79494
+"population": 204526
 },
 "2022": {
-"population": 202797,
-"households": 80341
+"population": 202797
 },
 "2023": {
-"population": 201439,
-"households": 81191
+"population": 201439
 },
 "2024": {
-"population": 199803,
-"households": 81992
+"population": 199803
+},
+"2025": {
+"population": 198024
 }
 },
 "18": {
-"2019": {
-"population": 326611,
-"households": 125029
-},
 "2020": {
-"population": 322477,
-"households": 126673
+"population": 322477
 },
 "2021": {
-"population": 320432,
-"households": 128284
+"population": 320432
 },
 "2022": {
-"population": 318308,
-"households": 129825
+"population": 318308
 },
 "2023": {
-"population": 316220,
-"households": 131349
+"population": 316220
 },
 "2024": {
-"population": 313759,
-"households": 132908
+"population": 313759
+},
+"2025": {
+"population": 311674
 }
 },
 "19": {
-"2019": {
-"population": 645911,
-"households": 277184
-},
 "2020": {
-"population": 643828,
-"households": 283069
+"population": 643828
 },
 "2021": {
-"population": 643963,
-"households": 288275
+"population": 643963
 },
 "2022": {
-"population": 638582,
-"households": 294429
+"population": 638582
 },
 "2023": {
-"population": 638826,
-"households": 300003
+"population": 638826
 },
 "2024": {
-"population": 639165,
-"households": 305526
+"population": 639165
+},
+"2025": {
+"population": 638477
 }
 },
 "20": {
-"2019": {
-"population": 1558301,
-"households": 1047473
-},
 "2020": {
-"population": 1566885,
-"households": 1070209
+"population": 1566885
 },
 "2021": {
-"population": 1583672,
-"households": 1092000
+"population": 1583672
 },
 "2022": {
-"population": 1594758,
-"households": 1118807
+"population": 1594758
 },
 "2023": {
-"population": 1618066,
-"households": 1145520
+"population": 1618066
 },
 "2024": {
-"population": 1635525,
-"households": 1172425
+"population": 1635525
+},
+"2025": {
+"population": 1645985
 }
 },
 "21": {
-"2019": {
-"population": 734753,
-"households": 489617
-},
 "2020": {
-"population": 741524,
-"households": 506761
+"population": 741524
 },
 "2021": {
-"population": 751343,
-"households": 524479
+"population": 751343
 },
 "2022": {
-"population": 759386,
-"households": 541063
+"population": 759386
 },
 "2023": {
-"population": 771189,
-"households": 560445
+"population": 771189
 },
 "2024": {
-"population": 782171,
-"households": 578414
+"population": 782171
+},
+"2025": {
+"population": 789730
 }
 },
 "22": {
-"2019": {
-"population": 537698,
-"households": 239184
-},
 "2020": {
-"population": 535559,
-"households": 243727
+"population": 535559
 },
 "2021": {
-"population": 536557,
-"households": 248074
+"population": 536557
 },
 "2022": {
-"population": 536144,
-"households": 252725
+"population": 536144
 },
 "2023": {
-"population": 536436,
-"households": 257417
+"population": 536436
 },
 "2024": {
-"population": 536388,
-"households": 261649
+"population": 536388
+},
+"2025": {
+"population": 535563
 }
 },
 "23": {
-"2019": {
-"population": 229958,
-"households": 106685
-},
 "2020": {
-"population": 228536,
-"households": 108270
+"population": 228536
 },
 "2021": {
-"population": 228376,
-"households": 109890
+"population": 228376
 },
 "2022": {
-"population": 227808,
-"households": 111480
+"population": 227808
 },
 "2023": {
-"population": 227052,
-"households": 112977
+"population": 227052
 },
 "2024": {
-"population": 226517,
-"households": 114393
+"population": 226517
+},
+"2025": {
+"population": 225591
 }
 },
 "24": {
-"2019": {
-"population": 720113,
-"households": 305121
-},
 "2020": {
-"population": 720718,
-"households": 313586
+"population": 720718
 },
 "2021": {
-"population": 724178,
-"households": 321929
+"population": 724178
 },
 "2022": {
-"population": 726687,
-"households": 329606
+"population": 726687
 },
 "2023": {
-"population": 730543,
-"households": 338168
+"population": 730543
 },
 "2024": {
-"population": 733131,
-"households": 345381
+"population": 733131
+},
+"2025": {
+"population": 733400
 }
 },
 "25": {
-"2019": {
-"population": 494680,
-"households": 214024
-},
 "2020": {
-"population": 493670,
-"households": 220064
+"population": 493670
 },
 "2021": {
-"population": 495325,
-"households": 225949
+"population": 495325
 },
 "2022": {
-"population": 497778,
-"households": 232139
+"population": 497778
 },
 "2023": {
-"population": 499563,
-"households": 238172
+"population": 499563
 },
 "2024": {
-"population": 500607,
-"households": 242594
+"population": 500607
+},
+"2025": {
+"population": 501954
 }
 },
 "26": {
-"2019": {
-"population": 260751,
-"households": 99423
-},
 "2020": {
-"population": 260081,
-"households": 101547
+"population": 260081
 },
 "2021": {
-"population": 260433,
-"households": 104249
+"population": 260433
 },
 "2022": {
-"population": 260406,
-"households": 106639
+"population": 260406
 },
 "2023": {
-"population": 260117,
-"households": 108919
+"population": 260117
 },
 "2024": {
-"population": 259770,
-"households": 111246
+"population": 259770
+},
+"2025": {
+"population": 259683
 }
 },
 "27": {
-"2019": {
-"population": 566303,
-"households": 212786
-},
 "2020": {
-"population": 560925,
-"households": 217621
+"population": 560925
 },
 "2021": {
-"population": 561992,
-"households": 221802
+"population": 561992
 },
 "2022": {
-"population": 562816,
-"households": 226312
+"population": 562816
 },
 "2023": {
-"population": 562902,
-"households": 230171
+"population": 562902
 },
 "2024": {
-"population": 562242,
-"households": 233852
+"population": 562242
+},
+"2025": {
+"population": 560847
 }
 },
 "30": {
-"2019": {
-"population": 2648927,
-"households": 983771
-},
 "2020": {
-"population": 2633207,
-"households": 1004213
+"population": 2633207
 },
 "2021": {
-"population": 2634154,
-"households": 1024002
+"population": 2634154
 },
 "2022": {
-"population": 2630058,
-"households": 1044524
+"population": 2630058
 },
 "2023": {
-"population": 2625794,
-"households": 1063007
+"population": 2625794
 },
 "2024": {
-"population": 2620172,
-"households": 1079582
+"population": 2620172
+},
+"2025": {
+"population": 2613432
 }
 },
 "31": {
-"2019": {
-"population": 1595747,
-"households": 468483
-},
 "2020": {
-"population": 1581184,
-"households": 476118
+"population": 1581184
 },
 "2021": {
-"population": 1579805,
-"households": 483349
+"population": 1579805
 },
 "2022": {
-"population": 1576915,
-"households": 490644
+"population": 1576915
 },
 "2023": {
-"population": 1573230,
-"households": 497860
+"population": 1573230
 },
 "2024": {
-"population": 1566308,
-"households": 504266
+"population": 1566308
+},
+"2025": {
+"population": 1560279
 }
 },
 "32": {
-"2019": {
-"population": 1396831,
-"households": 397878
-},
 "2020": {
-"population": 1378221,
-"households": 403890
+"population": 1378221
 },
 "2021": {
-"population": 1376230,
-"households": 410088
+"population": 1376230
 },
 "2022": {
-"population": 1372910,
-"households": 415987
+"population": 1372910
 },
 "2023": {
-"population": 1367842,
-"households": 421268
+"population": 1367842
 },
 "2024": {
-"population": 1360245,
-"households": 426326
+"population": 1360245
+},
+"2025": {
+"population": 1354477
 }
 },
 "33": {
-"2019": {
-"population": 1472859,
-"households": 393356
-},
 "2020": {
-"population": 1458580,
-"households": 399090
+"population": 1458580
 },
 "2021": {
-"population": 1457556,
-"households": 405275
+"population": 1457556
 },
 "2022": {
-"population": 1454730,
-"households": 410815
+"population": 1454730
 },
 "2023": {
-"population": 1450333,
-"households": 416240
+"population": 1450333
 },
 "2024": {
-"population": 1442013,
-"households": 420976
+"population": 1442013
+},
+"2025": {
+"population": 1436741
 }
 },
 "34": {
-"2019": {
-"population": 1878146,
-"households": 605004
-},
 "2020": {
-"population": 1866697,
-"households": 616810
+"population": 1866697
 },
 "2021": {
-"population": 1868519,
-"households": 629504
+"population": 1868519
 },
 "2022": {
-"population": 1869806,
-"households": 642015
+"population": 1869806
 },
 "2023": {
-"population": 1869608,
-"households": 652557
+"population": 1869608
 },
 "2024": {
-"population": 1867942,
-"households": 661003
+"population": 1867942
+},
+"2025": {
+"population": 1865501
 }
 },
 "35": {
-"2019": {
-"population": 537299,
-"households": 172580
-},
 "2020": {
-"population": 534500,
-"households": 175666
+"population": 534500
 },
 "2021": {
-"population": 533394,
-"households": 179229
+"population": 533394
 },
 "2022": {
-"population": 531599,
-"households": 183618
+"population": 531599
 },
 "2023": {
-"population": 528878,
-"households": 186684
+"population": 528878
 },
 "2024": {
-"population": 525325,
-"households": 189342
+"population": 525325
+},
+"2025": {
+"population": 522819
 }
 },
 "36": {
-"2019": {
-"population": 1137357,
-"households": 394064
-},
 "2020": {
-"population": 1124924,
-"households": 400583
+"population": 1124924
 },
 "2021": {
-"population": 1122265,
-"households": 406943
+"population": 1122265
 },
 "2022": {
-"population": 1117925,
-"households": 413107
+"population": 1117925
 },
 "2023": {
-"population": 1113378,
-"households": 418980
+"population": 1113378
 },
 "2024": {
-"population": 1106404,
-"households": 424219
+"population": 1106404
+},
+"2025": {
+"population": 1100647
 }
 },
 "37": {
-"2019": {
-"population": 378438,
-"households": 117994
-},
 "2020": {
-"population": 376195,
-"households": 120188
+"population": 376195
 },
 "2021": {
-"population": 376350,
-"households": 122801
+"population": 376350
 },
 "2022": {
-"population": 375382,
-"households": 125118
+"population": 375382
 },
 "2023": {
-"population": 374137,
-"households": 126956
+"population": 374137
 },
 "2024": {
-"population": 372183,
-"households": 128559
+"population": 372183
+},
+"2025": {
+"population": 370677
 }
 },
 "38": {
-"2019": {
-"population": 424091,
-"households": 135143
-},
 "2020": {
-"population": 422042,
-"households": 137871
+"population": 422042
 },
 "2021": {
-"population": 421995,
-"households": 140512
+"population": 421995
 },
 "2022": {
-"population": 421684,
-"households": 143368
+"population": 421684
 },
 "2023": {
-"population": 420487,
-"households": 145677
+"population": 420487
 },
 "2024": {
-"population": 418733,
-"households": 147459
+"population": 418733
+},
+"2025": {
+"population": 417907
 }
 },
 "39": {
-"2019": {
-"population": 512780,
-"households": 149891
-},
 "2020": {
-"population": 509470,
-"households": 152361
+"population": 509470
 },
 "2021": {
-"population": 509001,
-"households": 154912
+"population": 509001
 },
 "2022": {
-"population": 508325,
-"households": 157566
+"population": 508325
 },
 "2023": {
-"population": 506872,
-"households": 159950
+"population": 506872
 },
 "2024": {
-"population": 504379,
-"households": 161989
+"population": 504379
+},
+"2025": {
+"population": 502088
 }
 },
 "40": {
-"2019": {
-"population": 1802872,
-"households": 628656
-},
 "2020": {
-"population": 1794531,
-"households": 640781
+"population": 1794531
 },
 "2021": {
-"population": 1790863,
-"households": 654344
+"population": 1790863
 },
 "2022": {
-"population": 1784641,
-"households": 668539
+"population": 1784641
 },
 "2023": {
-"population": 1779373,
-"households": 680877
+"population": 1779373
 },
 "2024": {
-"population": 1772381,
-"households": 692088
+"population": 1772381
+},
+"2025": {
+"population": 1765967
 }
 },
 "41": {
-"2019": {
-"population": 1586646,
-"households": 519338
-},
 "2020": {
-"population": 1567983,
-"households": 528347
+"population": 1567983
 },
 "2021": {
-"population": 1566510,
-"households": 538277
+"population": 1566510
 },
 "2022": {
-"population": 1563048,
-"households": 548525
+"population": 1563048
 },
 "2023": {
-"population": 1558528,
-"households": 557058
+"population": 1558528
 },
 "2024": {
-"population": 1552135,
-"households": 565876
+"population": 1552135
+},
+"2025": {
+"population": 1546737
 }
 },
 "42": {
-"2019": {
-"population": 642950,
-"households": 223231
-},
 "2020": {
-"population": 638736,
-"households": 226892
+"population": 638736
 },
 "2021": {
-"population": 638732,
-"households": 230763
+"population": 638732
 },
 "2022": {
-"population": 637341,
-"households": 234063
+"population": 637341
 },
 "2023": {
-"population": 635142,
-"households": 237489
+"population": 635142
 },
 "2024": {
-"population": 632187,
-"households": 240382
+"population": 632187
+},
+"2025": {
+"population": 629377
 }
 },
 "43": {
-"2019": {
-"population": 522311,
-"households": 175639
-},
 "2020": {
-"population": 517435,
-"households": 178748
+"population": 517435
 },
 "2021": {
-"population": 516843,
-"households": 181752
+"population": 516843
 },
 "2022": {
-"population": 515795,
-"households": 184909
+"population": 515795
 },
 "2023": {
-"population": 514021,
-"households": 187581
+"population": 514021
 },
 "2024": {
-"population": 511706,
-"households": 190025
+"population": 511706
+},
+"2025": {
+"population": 510189
 }
 },
 "44": {
-"2019": {
-"population": 962665,
-"households": 299717
-},
 "2020": {
-"population": 953660,
-"households": 304433
+"population": 953660
 },
 "2021": {
-"population": 948310,
-"households": 308947
+"population": 948310
 },
 "2022": {
-"population": 944605,
-"households": 313596
+"population": 944605
 },
 "2023": {
-"population": 937915,
-"households": 317734
+"population": 937915
 },
 "2024": {
-"population": 929952,
-"households": 321366
+"population": 929952
+},
+"2025": {
+"population": 924124
 }
 },
 "45": {
-"2019": {
-"population": 1305211,
-"households": 388224
-},
 "2020": {
-"population": 1298640,
-"households": 394597
+"population": 1298640
 },
 "2021": {
-"population": 1296013,
-"households": 400811
+"population": 1296013
 },
 "2022": {
-"population": 1291131,
-"households": 407315
+"population": 1291131
 },
 "2023": {
-"population": 1284836,
-"households": 412826
+"population": 1284836
 },
 "2024": {
-"population": 1275519,
-"households": 417865
+"population": 1275519
+},
+"2025": {
+"population": 1269448
 }
 },
 "46": {
-"2019": {
-"population": 983418,
-"households": 305844
-},
 "2020": {
-"population": 977175,
-"households": 311145
+"population": 977175
 },
 "2021": {
-"population": 975570,
-"households": 316604
+"population": 975570
 },
 "2022": {
-"population": 972101,
-"households": 322190
+"population": 972101
 },
 "2023": {
-"population": 968065,
-"households": 327426
+"population": 968065
 },
 "2024": {
-"population": 962444,
-"households": 331891
+"population": 962444
+},
+"2025": {
+"population": 957421
 }
 },
 "47": {
-"2019": {
-"population": 1153390,
-"households": 379651
-},
 "2020": {
-"population": 1146936,
-"households": 387699
+"population": 1146936
 },
 "2021": {
-"population": 1146286,
-"households": 396177
+"population": 1146286
 },
 "2022": {
-"population": 1145187,
-"households": 402016
+"population": 1145187
 },
 "2023": {
-"population": 1142657,
-"households": 407975
+"population": 1142657
 },
 "2024": {
-"population": 1137772,
-"households": 411116
+"population": 1137772
+},
+"2025": {
+"population": 1134091
 }
 },
 "48": {
-"2019": {
-"population": 719136,
-"households": 227396
-},
 "2020": {
-"population": 717201,
-"households": 231315
+"population": 717201
 },
 "2021": {
-"population": 717040,
-"households": 235673
+"population": 717040
 },
 "2022": {
-"population": 716647,
-"households": 239861
+"population": 716647
 },
 "2023": {
-"population": 714284,
-"households": 242917
+"population": 714284
 },
 "2024": {
-"population": 710740,
-"households": 246183
+"population": 710740
+},
+"2025": {
+"population": 708265
 }
 },
 "49": {
-"2019": {
-"population": 353174,
-"households": 115748
-},
 "2020": {
-"population": 350911,
-"households": 117741
+"population": 350911
 },
 "2021": {
-"population": 351484,
-"households": 119972
+"population": 351484
 },
 "2022": {
-"population": 351588,
-"households": 122358
+"population": 351588
 },
 "2023": {
-"population": 351595,
-"households": 124524
+"population": 351595
 },
 "2024": {
-"population": 350510,
-"households": 126326
+"population": 350510
+},
+"2025": {
+"population": 349618
 }
 },
 "50": {
-"2019": {
-"population": 1779254,
-"households": 817820
-},
 "2020": {
-"population": 1784370,
-"households": 835977
+"population": 1784370
 },
 "2021": {
-"population": 1789385,
-"households": 852520
+"population": 1789385
 },
 "2022": {
-"population": 1792474,
-"households": 866675
+"population": 1792474
 },
 "2023": {
-"population": 1797075,
-"households": 883862
+"population": 1797075
 },
 "2024": {
-"population": 1799019,
-"households": 900484
+"population": 1799019
+},
+"2025": {
+"population": 1798588
 }
 },
 "51": {
-"2019": {
-"population": 405075,
-"households": 179812
-},
 "2020": {
-"population": 402011,
-"households": 182323
+"population": 402011
 },
 "2021": {
-"population": 401139,
-"households": 185253
+"population": 401139
 },
 "2022": {
-"population": 399557,
-"households": 188061
+"population": 399557
 },
 "2023": {
-"population": 398440,
-"households": 191094
+"population": 398440
 },
 "2024": {
-"population": 396753,
-"households": 193492
+"population": 396753
+},
+"2025": {
+"population": 394944
 }
 },
 "52": {
-"2019": {
-"population": 738316,
-"households": 292423
-},
 "2020": {
-"population": 728964,
-"households": 295396
+"population": 728964
 },
 "2021": {
-"population": 724678,
-"households": 298848
+"population": 724678
 },
 "2022": {
-"population": 718790,
-"households": 302165
+"population": 718790
 },
 "2023": {
-"population": 711478,
-"households": 305171
+"population": 711478
 },
 "2024": {
-"population": 704126,
-"households": 307969
+"population": 704126
+},
+"2025": {
+"population": 697679
 }
 },
 "53": {
-"2019": {
-"population": 453103,
-"households": 170691
-},
 "2020": {
-"population": 448745,
-"households": 172565
+"population": 448745
 },
 "2021": {
-"population": 446148,
-"households": 174440
+"population": 446148
 },
 "2022": {
-"population": 442949,
-"households": 175738
+"population": 442949
 },
 "2023": {
-"population": 439629,
-"households": 177596
+"population": 439629
 },
 "2024": {
-"population": 436283,
-"households": 179308
+"population": 436283
+},
+"2025": {
+"population": 433275
 }
 },
 "54": {
-"2019": {
-"population": 441726,
-"households": 177308
-},
 "2020": {
-"population": 437350,
-"households": 179040
+"population": 437350
 },
 "2021": {
-"population": 434580,
-"households": 180833
+"population": 434580
 },
 "2022": {
-"population": 430669,
-"households": 182675
+"population": 430669
 },
 "2023": {
-"population": 426331,
-"households": 184393
+"population": 426331
 },
 "2024": {
-"population": 421745,
-"households": 185874
+"population": 421745
+},
+"2025": {
+"population": 417480
 }
 },
 "55": {
-"2019": {
-"population": 478227,
-"households": 168476
-},
 "2020": {
-"population": 476727,
-"households": 170708
+"population": 476727
 },
 "2021": {
-"population": 475875,
-"households": 173216
+"population": 475875
 },
 "2022": {
-"population": 474539,
-"households": 175817
+"population": 474539
 },
 "2023": {
-"population": 472722,
-"households": 178167
+"population": 472722
 },
 "2024": {
-"population": 470507,
-"households": 180461
+"population": 470507
+},
+"2025": {
+"population": 468368
 }
 },
 "56": {
-"2019": {
-"population": 472356,
-"households": 192755
-},
 "2020": {
-"population": 467356,
-"households": 195004
+"population": 467356
 },
 "2021": {
-"population": 464505,
-"households": 197593
+"population": 464505
 },
 "2022": {
-"population": 461431,
-"households": 199936
+"population": 461431
 },
 "2023": {
-"population": 458287,
-"households": 202202
+"population": 458287
 },
 "2024": {
-"population": 454764,
-"households": 204387
+"population": 454764
+},
+"2025": {
+"population": 451964
 }
 },
 "57": {
-"2019": {
-"population": 1298304,
-"households": 548617
-},
 "2020": {
-"population": 1295026,
-"households": 558825
+"population": 1295026
 },
 "2021": {
-"population": 1298425,
-"households": 569461
+"population": 1298425
 },
 "2022": {
-"population": 1299636,
-"households": 579417
+"population": 1299636
 },
 "2023": {
-"population": 1298977,
-"households": 586117
+"population": 1298977
 },
 "2024": {
-"population": 1297657,
-"households": 594808
+"population": 1297657
+},
+"2025": {
+"population": 1295922
 }
 },
 "58": {
-"2019": {
-"population": 284138,
-"households": 112268
-},
 "2020": {
-"population": 284549,
-"households": 115163
+"population": 284549
 },
 "2021": {
-"population": 285916,
-"households": 117497
+"population": 285916
 },
 "2022": {
-"population": 286786,
-"households": 119841
+"population": 286786
 },
 "2023": {
-"population": 287644,
-"households": 121896
+"population": 287644
 },
 "2024": {
-"population": 288082,
-"households": 123826
+"population": 288082
+},
+"2025": {
+"population": 288757
 }
 },
 "60": {
-"2019": {
-"population": 1059887,
-"households": 415420
-},
 "2020": {
-"population": 1040308,
-"households": 420803
+"population": 1040308
 },
 "2021": {
-"population": 1035028,
-"households": 426048
+"population": 1035028
 },
 "2022": {
-"population": 1028814,
-"households": 429988
+"population": 1028814
 },
 "2023": {
-"population": 1021883,
-"households": 433815
+"population": 1021883
 },
 "2024": {
-"population": 1014401,
-"households": 437370
+"population": 1014401
+},
+"2025": {
+"population": 1008362
 }
 },
 "61": {
-"2019": {
-"population": 328618,
-"households": 123952
-},
 "2020": {
-"population": 325868,
-"households": 125666
+"population": 325868
 },
 "2021": {
-"population": 325116,
-"households": 127506
+"population": 325116
 },
 "2022": {
-"population": 323860,
-"households": 129514
+"population": 323860
 },
 "2023": {
-"population": 322273,
-"households": 130318
+"population": 322273
 },
 "2024": {
-"population": 320445,
-"households": 132050
+"population": 320445
+},
+"2025": {
+"population": 318968
 }
 },
 "62": {
-"2019": {
-"population": 725867,
-"households": 274543
-},
 "2020": {
-"population": 714118,
-"households": 278306
+"population": 714118
 },
 "2021": {
-"population": 712143,
-"households": 281829
+"population": 712143
 },
 "2022": {
-"population": 708775,
-"households": 285190
+"population": 708775
 },
 "2023": {
-"population": 704948,
-"households": 288391
+"population": 704948
 },
 "2024": {
-"population": 700862,
-"households": 291549
+"population": 700862
+},
+"2025": {
+"population": 696972
 }
 },
 "63": {
-"2019": {
-"population": 665620,
-"households": 220501
-},
 "2020": {
-"population": 670265,
-"households": 224890
+"population": 670265
 },
 "2021": {
-"population": 676583,
-"households": 228736
+"population": 676583
 },
 "2022": {
-"population": 684140,
-"households": 233293
+"population": 684140
 },
 "2023": {
-"population": 691714,
-"households": 236902
+"population": 691714
 },
 "2024": {
-"population": 698597,
-"households": 241517
+"population": 698597
+},
+"2025": {
+"population": 704494
 }
 },
 "64": {
-"2019": {
-"population": 595072,
-"households": 217841
-},
 "2020": {
-"population": 587883,
-"households": 220160
+"population": 587883
 },
 "2021": {
-"population": 585352,
-"households": 222630
+"population": 585352
 },
 "2022": {
-"population": 581652,
-"households": 224948
+"population": 581652
 },
 "2023": {
-"population": 577866,
-"households": 227208
+"population": 577866
 },
 "2024": {
-"population": 573388,
-"households": 229235
+"population": 573388
+},
+"2025": {
+"population": 569262
 }
 },
 "65": {
-"2019": {
-"population": 865247,
-"households": 347266
-},
 "2020": {
-"population": 849481,
-"households": 352300
+"population": 849481
 },
 "2021": {
-"population": 847384,
-"households": 358036
+"population": 847384
 },
 "2022": {
-"population": 844494,
-"households": 363476
+"population": 844494
 },
 "2023": {
-"population": 841729,
-"households": 368521
+"population": 841729
 },
 "2024": {
-"population": 839116,
-"households": 372740
+"population": 839116
+},
+"2025": {
+"population": 835480
 }
 },
 "66": {
-"2019": {
-"population": 536311,
-"households": 195825
-},
 "2020": {
-"population": 532310,
-"households": 198230
+"population": 532310
 },
 "2021": {
-"population": 529395,
-"households": 200600
+"population": 529395
 },
 "2022": {
-"population": 525944,
-"households": 202835
+"population": 525944
 },
 "2023": {
-"population": 521907,
-"households": 204897
+"population": 521907
 },
 "2024": {
-"population": 517308,
-"households": 206966
+"population": 517308
+},
+"2025": {
+"population": 513150
 }
 },
 "67": {
-"2019": {
-"population": 992451,
-"households": 358762
-},
 "2020": {
-"population": 981940,
-"households": 364119
+"population": 981940
 },
 "2021": {
-"population": 978372,
-"households": 368998
+"population": 978372
 },
 "2022": {
-"population": 973386,
-"households": 373933
+"population": 973386
 },
 "2023": {
-"population": 967421,
-"households": 378316
+"population": 967421
 },
 "2024": {
-"population": 960718,
-"households": 382224
+"population": 960718
+},
+"2025": {
+"population": 954417
 }
 },
 "70": {
-"2019": {
-"population": 873101,
-"households": 319619
-},
 "2020": {
-"population": 869313,
-"households": 325837
+"population": 869313
 },
 "2021": {
-"population": 868281,
-"households": 332214
+"population": 868281
 },
 "2022": {
-"population": 865807,
-"households": 338676
+"population": 865807
 },
 "2023": {
-"population": 864746,
-"households": 344905
+"population": 864746
 },
 "2024": {
-"population": 864037,
-"households": 350718
+"population": 864037
+},
+"2025": {
+"population": 861879
 }
 },
 "71": {
-"2019": {
-"population": 895525,
-"households": 343345
-},
 "2020": {
-"population": 891976,
-"households": 348371
+"population": 891976
 },
 "2021": {
-"population": 894054,
-"households": 353679
+"population": 894054
 },
 "2022": {
-"population": 894283,
-"households": 359348
+"population": 894283
 },
 "2023": {
-"population": 895281,
-"households": 365095
+"population": 895281
 },
 "2024": {
-"population": 896351,
-"households": 370344
+"population": 896351
+},
+"2025": {
+"population": 896673
 }
 },
 "72": {
-"2019": {
-"population": 846334,
-"households": 302594
-},
 "2020": {
-"population": 838628,
-"households": 306999
+"population": 838628
 },
 "2021": {
-"population": 835360,
-"households": 311136
+"population": 835360
 },
 "2022": {
-"population": 830695,
-"households": 315286
+"population": 830695
 },
 "2023": {
-"population": 826391,
-"households": 319886
+"population": 826391
 },
 "2024": {
-"population": 822211,
-"households": 324002
+"population": 822211
+},
+"2025": {
+"population": 817849
 }
 },
 "73": {
-"2019": {
-"population": 920030,
-"households": 404004
-},
 "2020": {
-"population": 920729,
-"households": 411586
+"population": 920729
 },
 "2021": {
-"population": 922171,
-"households": 417915
+"population": 922171
 },
 "2022": {
-"population": 921882,
-"households": 426205
+"population": 921882
 },
 "2023": {
-"population": 924521,
-"households": 434658
+"population": 924521
 },
 "2024": {
-"population": 925758,
-"households": 442482
+"population": 925758
+},
+"2025": {
+"population": 926318
 }
 },
 "74": {
-"2019": {
-"population": 584703,
-"households": 290805
-},
 "2020": {
-"population": 586199,
-"households": 296825
+"population": 586199
 },
 "2021": {
-"population": 586789,
-"households": 302618
+"population": 586789
 },
 "2022": {
-"population": 589428,
-"households": 309823
+"population": 589428
 },
 "2023": {
-"population": 592033,
-"households": 316718
+"population": 592033
 },
 "2024": {
-"population": 590867,
-"households": 323332
+"population": 590867
+},
+"2025": {
+"population": 587367
 }
 },
 "75": {
-"2019": {
-"population": 193305,
-"households": 71306
-},
 "2020": {
-"population": 192052,
-"households": 72732
+"population": 192052
 },
 "2021": {
-"population": 190842,
-"households": 73940
+"population": 190842
 },
 "2022": {
-"population": 189453,
-"households": 75048
+"population": 189453
 },
 "2023": {
-"population": 187993,
-"households": 76343
+"population": 187993
 },
 "2024": {
-"population": 186784,
-"households": 77393
+"population": 186784
+},
+"2025": {
+"population": 185281
 }
 },
 "76": {
-"2019": {
-"population": 485191,
-"households": 216571
-},
 "2020": {
-"population": 482193,
-"households": 220362
+"population": 482193
 },
 "2021": {
-"population": 482875,
-"households": 224570
+"population": 482875
 },
 "2022": {
-"population": 482950,
-"households": 229092
+"population": 482950
 },
 "2023": {
-"population": 483668,
-"households": 233561
+"population": 483668
 },
 "2024": {
-"population": 484145,
-"households": 237512
+"population": 484145
+},
+"2025": {
+"population": 484127
 }
 },
 "77": {
-"2019": {
-"population": 554116,
-"households": 265229
-},
 "2020": {
-"population": 550678,
-"households": 271890
+"population": 550678
 },
 "2021": {
-"population": 553171,
-"households": 276936
+"population": 553171
 },
 "2022": {
-"population": 553298,
-"households": 282967
+"population": 553298
 },
 "2023": {
-"population": 550977,
-"households": 288188
+"population": 550977
 },
 "2024": {
-"population": 551769,
-"households": 293330
+"population": 551769
+},
+"2025": {
+"population": 551443
 }
 },
 "80": {
-"2019": {
-"population": 1561927,
-"households": 573215
-},
 "2020": {
-"population": 1550721,
-"households": 581948
+"population": 1550721
 },
 "2021": {
-"population": 1549344,
-"households": 590976
+"population": 1549344
 },
 "2022": {
-"population": 1545147,
-"households": 599937
+"population": 1545147
 },
 "2023": {
-"population": 1540953,
-"households": 608533
+"population": 1540953
 },
 "2024": {
-"population": 1534653,
-"households": 616268
+"population": 1534653
+},
+"2025": {
+"population": 1530435
 }
 },
 "81": {
-"2019": {
-"population": 476739,
-"households": 189510
-},
 "2020": {
-"population": 477770,
-"households": 193701
+"population": 477770
 },
 "2021": {
-"population": 479351,
-"households": 197381
+"population": 479351
 },
 "2022": {
-"population": 480057,
-"households": 201080
+"population": 480057
 },
 "2023": {
-"population": 482121,
-"households": 204440
+"population": 482121
 },
 "2024": {
-"population": 483855,
-"households": 208232
+"population": 483855
+},
+"2025": {
+"population": 484796
 }
 },
 "82": {
-"2019": {
-"population": 268788,
-"households": 116485
-},
 "2020": {
-"population": 268229,
-"households": 118609
+"population": 268229
 },
 "2021": {
-"population": 268016,
-"households": 120551
+"population": 268016
 },
 "2022": {
-"population": 267442,
-"households": 122210
+"population": 267442
 },
 "2023": {
-"population": 267057,
-"households": 123860
+"population": 267057
 },
 "2024": {
-"population": 266296,
-"households": 125443
+"population": 266296
+},
+"2025": {
+"population": 265653
 }
 },
 "83": {
-"2019": {
-"population": 416582,
-"households": 266093
-},
 "2020": {
-"population": 414471,
-"households": 272917
+"population": 414471
 },
 "2021": {
-"population": 418785,
-"households": 277112
+"population": 418785
 },
 "2022": {
-"population": 417891,
-"households": 281204
+"population": 417891
 },
 "2023": {
-"population": 423599,
-"households": 285937
+"population": 423599
 },
 "2024": {
-"population": 429583,
-"households": 294383
+"population": 429583
+},
+"2025": {
+"population": 432464
 }
 },
 "84": {
-"2019": {
-"population": 1068010,
-"households": 503053
-},
 "2020": {
-"population": 1067726,
-"households": 512366
+"population": 1067726
 },
 "2021": {
-"population": 1072464,
-"households": 521265
+"population": 1072464
 },
 "2022": {
-"population": 1073663,
-"households": 530712
+"population": 1073663
 },
 "2023": {
-"population": 1075788,
-"households": 539755
+"population": 1075788
 },
 "2024": {
-"population": 1076666,
-"households": 550373
+"population": 1076666
+},
+"2025": {
+"population": 1075977
 }
 },
 "85": {
-"2019": {
-"population": 193370,
-"households": 91119
-},
 "2020": {
-"population": 194372,
-"households": 92739
+"population": 194372
 },
 "2021": {
-"population": 194573,
-"households": 94295
+"population": 194573
 },
 "2022": {
-"population": 194226,
-"households": 95752
+"population": 194226
 },
 "2023": {
-"population": 193371,
-"households": 97081
+"population": 193371
 },
 "2024": {
-"population": 192927,
-"households": 98370
+"population": 192927
+},
+"2025": {
+"population": 192487
 }
 },
 "86": {
-"2019": {
-"population": 511304,
-"households": 236156
-},
 "2020": {
-"population": 509208,
-"households": 240248
+"population": 509208
 },
 "2021": {
-"population": 509479,
-"households": 244176
+"population": 509479
 },
 "2022": {
-"population": 509385,
-"households": 248311
+"population": 509385
 },
 "2023": {
-"population": 508857,
-"households": 252386
+"population": 508857
 },
 "2024": {
-"population": 508053,
-"households": 256148
+"population": 508053
+},
+"2025": {
+"population": 506856
 }
 },
 "90": {
-"2019": {
-"population": 1435968,
-"households": 543879
-},
 "2020": {
-"population": 1428609,
-"households": 553597
+"population": 1428609
 },
 "2021": {
-"population": 1431536,
-"households": 562422
+"population": 1431536
 },
 "2022": {
-"population": 1431063,
-"households": 572645
+"population": 1431063
 },
 "2023": {
-"population": 1431959,
-"households": 584425
+"population": 1431959
 },
 "2024": {
-"population": 1431107,
-"households": 593923
+"population": 1431107
+},
+"2025": {
+"population": 1429125
 }
 },
 "91": {
-"2019": {
-"population": 323586,
-"households": 104281
-},
 "2020": {
-"population": 324098,
-"households": 105903
+"population": 324098
 },
 "2021": {
-"population": 324835,
-"households": 107562
+"population": 324835
 },
 "2022": {
-"population": 325303,
-"households": 109030
+"population": 325303
 },
 "2023": {
-"population": 325470,
-"households": 110545
+"population": 325470
 },
 "2024": {
-"population": 324879,
-"households": 111775
+"population": 324879
+},
+"2025": {
+"population": 324560
 }
 },
 "92": {
-"2019": {
-"population": 643164,
-"households": 231924
-},
 "2020": {
-"population": 640574,
-"households": 234863
+"population": 640574
 },
 "2021": {
-"population": 639788,
-"households": 237935
+"population": 639788
 },
 "2022": {
-"population": 638206,
-"households": 241159
+"population": 638206
 },
 "2023": {
-"population": 637017,
-"households": 243956
+"population": 637017
 },
 "2024": {
-"population": 634959,
-"households": 246853
+"population": 634959
+},
+"2025": {
+"population": 633416
 }
 },
 "93": {
-"2019": {
-"population": 524865,
-"households": 194209
-},
 "2020": {
-"population": 523077,
-"households": 197086
+"population": 523077
 },
 "2021": {
-"population": 522541,
-"households": 199687
+"population": 522541
 },
 "2022": {
-"population": 521619,
-"households": 202367
+"population": 521619
 },
 "2023": {
-"population": 520598,
-"households": 205036
+"population": 520598
 },
 "2024": {
-"population": 519440,
-"households": 207767
+"population": 519440
+},
+"2025": {
+"population": 518066
 }
 },
 "94": {
-"2019": {
-"population": 725104,
-"households": 191409
-},
 "2020": {
-"population": 726015,
-"households": 195224
+"population": 726015
 },
 "2021": {
-"population": 729581,
-"households": 199103
+"population": 729581
 },
 "2022": {
-"population": 732955,
-"households": 201433
+"population": 732955
 },
 "2023": {
-"population": 737077,
-"households": 204902
+"population": 737077
 },
 "2024": {
-"population": 740904,
-"households": 208009
+"population": 740904
+},
+"2025": {
+"population": 744971
 }
 },
 "95": {
-"2019": {
-"population": 536330,
-"households": 167137
-},
 "2020": {
-"population": 538602,
-"households": 170091
+"population": 538602
 },
 "2021": {
-"population": 542314,
-"households": 173226
+"population": 542314
 },
 "2022": {
-"population": 545913,
-"households": 175981
+"population": 545913
 },
 "2023": {
-"population": 549946,
-"households": 178717
+"population": 549946
 },
 "2024": {
-"population": 552974,
-"households": 181284
+"population": 552974
+},
+"2025": {
+"population": 556087
 }
 },
 "96": {
-"2019": {
-"population": 808020,
-"households": 215728
-},
 "2020": {
-"population": 804429,
-"households": 219403
+"population": 804429
 },
 "2021": {
-"population": 809660,
-"households": 223141
+"population": 809660
 },
 "2022": {
-"population": 814121,
-"households": 226505
+"population": 814121
 },
 "2023": {
-"population": 819162,
-"households": 229831
+"population": 819162
 },
 "2024": {
-"population": 823996,
-"households": 232664
+"population": 823996
+},
+"2025": {
+"population": 828346
 }
 }
 }
