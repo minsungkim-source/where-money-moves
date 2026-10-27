@@ -118,14 +118,14 @@
     var as = $$(".units > a", m);
     as.sort(function (a, b) { return (JSON.parse(b.dataset.tip).s || 0) - (JSON.parse(a.dataset.tip).s || 0); });
     as.forEach(function (a, i) {
-      a.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600, delay: 120 + i * 70, easing: EASE, fill: "backwards" });
+      a.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, delay: 80 + i * 45, easing: EASE, fill: "backwards" });
     });
   });
 
   // ── lenses: map colour, ranked list order (FLIP), sub-headings
   var LENS_NAME = { score: "Momentum", people: "People", jobs: "Jobs", biz: "Businesses", money: "Money" };
   function placeInk(tabs) {
-    var sel = $('[aria-selected="true"]', tabs), ink = $(".lens-ink", tabs);
+    var sel = $('[aria-pressed="true"]', tabs), ink = $(".lens-ink", tabs);
     if (!sel || !ink) return;
     ink.style.width = sel.offsetWidth + "px";
     ink.style.transform = "translateX(" + sel.offsetLeft + "px)";
@@ -162,8 +162,10 @@
       $$("button", tabs).forEach(function (b) { ro.observe(b); });
     }
     function set(lens, quiet) {
-      $$("button", tabs).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.lens === lens)); });
+      $$("button", tabs).forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.lens === lens)); });
       placeInk(tabs);
+      var cur = $('[aria-pressed="true"]', tabs);
+      if (cur && tabs.scrollWidth > tabs.clientWidth) cur.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduced ? "auto" : "smooth" });
       if (map) map.dataset.lens = lens;
       var list = $(".sea-list", scope);
       if (list) flip(list, lens);
@@ -178,7 +180,7 @@
     });
     tabs.addEventListener("keydown", function (e) {
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      var bs = $$("button", tabs), i = bs.findIndex(function (b) { return b.getAttribute("aria-selected") === "true"; });
+      var bs = $$("button", tabs), i = bs.findIndex(function (b) { return b.getAttribute("aria-pressed") === "true"; });
       var n = bs[(i + (e.key === "ArrowRight" ? 1 : bs.length - 1)) % bs.length];
       n.focus(); set(n.dataset.lens);
     });

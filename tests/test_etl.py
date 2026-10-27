@@ -199,6 +199,43 @@ class Vietnam(unittest.TestCase):
         self.assertEqual(vn_gso.names(hcm), ["hochiminh"])
 
 
+class Words(unittest.TestCase):
+    """The plain-English summaries on detail pages (build.py)."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT))
+        import build
+        cls.b = build
+
+    def r(self, ranks, values=None):
+        r = {"name": "X", "rank": 2}
+        for k, v in zip(("people", "jobs", "biz", "money"), ranks):
+            r[k], r[k + "_rank"] = (values or {}).get(k, 0.01), v
+        return r
+
+    def test_ordinals(self):
+        self.assertEqual([self.b.ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22, 101, 111)],
+                         ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st", "111th"])
+
+    def test_top_quarter_is_not_called_worst(self):
+        text = self.b.brief(self.r([5, 3, 3, 3]), "th", 77, "Thai provinces")
+        self.assertIn("top quarter on every lens", text)
+        self.assertNotIn("weakest is", text)
+
+    def test_bottom_quarter(self):
+        self.assertIn("bottom quarter on every lens", self.b.brief(self.r([60, 70, 75, 77]), "th", 77, "Thai provinces"))
+
+    def test_mixed(self):
+        text = self.b.brief(self.r([30, 75, 40, 50], {"jobs": -0.023}), "th", 77, "Thai provinces")
+        self.assertIn("strongest lens is registered population growth", text)
+        self.assertIn("weakest is formal job growth (−2.3%, 75th)", text)
+
+    def test_meta_description_keeps_whole_sentences(self):
+        text = "One short sentence. " + "A much longer second sentence " * 6 + "ends here."
+        self.assertEqual(self.b.first_sentences(text, 60), "One short sentence.")
+
+
 class Summary(unittest.TestCase):
     def test_yearly_staleness_window(self):
         from datetime import date

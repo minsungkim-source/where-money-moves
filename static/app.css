@@ -97,6 +97,8 @@ main > * { min-width: 0; }
 .hero.detail { grid-template-columns: 1fr auto; align-items: center; max-width: none; gap: 24px; }
 @media (max-width: 640px) { .hero.detail { grid-template-columns: 1fr; } .hero.detail .map.mini { display: none; } .mini-sea { width: 100%; } }
 .hero.detail h1 { font-size: clamp(34px, 5vw, 60px); }
+.hero.detail .lede { color: var(--ink); max-width: 62ch; font-size: clamp(17px, 1.5vw, 19px); line-height: 1.6; }
+.hero.detail .formed { margin-top: 8px; }
 .warn { margin-top: 10px; padding: 10px 14px; border-left: 3px solid var(--ebb); background: color-mix(in srgb, var(--ebb) 8%, transparent); font-size: 14px; border-radius: 0 var(--r-1) var(--r-1) 0; }
 
 /* atlas: the memorable thing */
@@ -120,7 +122,7 @@ main > * { min-width: 0; }
   .map .labels text { font-size: 25px; stroke-width: 6px; }
   .map .coords { display: none; }
 }
-.map .hb { fill: var(--null); } .map .hl { stroke: var(--null-line); stroke-width: 1.1; }
+.hb { fill: var(--null); } .hl { stroke: var(--null-line); stroke-width: 1.1; }   /* the shared #hatch pattern */
 .map.mini { width: 96px; height: 172px; }
 /* Vietnam: merged provinces are several old shapes in one path, so fills carry no stroke; borders are their own layers */
 .map.vn .units path { stroke: none; }
@@ -141,11 +143,17 @@ main > * { min-width: 0; }
 .lenses { position: relative; display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); justify-self: start; max-width: 100%; }
 .lenses button { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; color: var(--muted); font: 500 14px var(--body);
   padding: 7px 14px 7px 11px; border-radius: 999px; cursor: pointer; transition: color .2s; }
-.lenses button[aria-selected="true"] { color: var(--paper); }
+.lenses button[aria-pressed="true"] { color: var(--paper); }
 .lenses .ic { width: 17px; height: 17px; }
 .lens-ink { position: absolute; z-index: 0; top: 4px; left: 0; height: calc(100% - 8px); width: 0; border-radius: 999px; background: var(--ink); transition: transform .35s var(--ease), width .35s var(--ease); }
-.lenses:not(.ready) button[aria-selected="true"] { background: var(--ink); }
-@media (max-width: 560px) { .lenses button span { display: none; } .lenses button { padding: 8px 11px; } }
+.lenses:not(.ready) button[aria-pressed="true"] { background: var(--ink); }
+@media (max-width: 560px) {     /* keep the words; let the row scroll sideways instead of hiding them */
+  .lenses { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; justify-self: stretch; -webkit-overflow-scrolling: touch; }
+  .lenses::-webkit-scrollbar { display: none; }
+  .lenses button { flex: none; padding: 8px 12px 8px 10px; }
+}
+.skip-map { position: absolute; left: -9999px; }
+.skip-map:focus { position: static; justify-self: start; padding: 6px 12px; border-radius: 999px; background: var(--ink); color: var(--paper); font-size: 14px; }
 .ic { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
 .legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; font-size: 12px; color: var(--muted); }

@@ -49,6 +49,10 @@ ICON = {  # 24px stroke icons, drawn for this site
     "score": '<path d="M4 17l5-5 4 3 7-8"/><path d="M15 7h5v5"/>',
 }
 SPIKE = 0.5
+# "no data" fill. Defined once per page in the shell (not per map), so pages with several maps have one #hatch.
+HATCH = ('<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+         '<rect width="5" height="5" class="hb"/><line x1="0" y1="0" x2="0" y2="5" class="hl"/></pattern></defs>')
+
 
 
 # ── formatting ───────────────────────────────────────────────────────────
@@ -452,6 +456,56 @@ def vietnam_model(vn):
     return V, label
 
 
+# ── plain-English summaries ──────────────────────────────────────────────
+# Every detail page opens with two or three sentences computed from its own numbers: where it is strongest,
+# where it is weakest, and one fact particular to it. Same data as the panels, said once in words.
+
+PHRASE = {
+    "region": {"people": "urban population growth", "jobs": "employment growth", "biz": "new firm registrations", "money": "real GDP growth"},
+    "th": {"people": "registered population growth", "jobs": "formal job growth", "biz": "growth in registered employers", "money": "bank deposit growth"},
+    "vn": {"people": "population growth", "jobs": "job growth", "biz": "new business registrations", "money": "enterprise revenue growth"},
+}
+
+
+def ordinal(n: int) -> str:
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def brief(r, layer: str, n: int, group: str, extra: str = "") -> str:
+    """'Chon Buri ranks 2nd of 77 Thai provinces on momentum. It is strongest on …, and weakest on ….' + extra"""
+    ranks = [(k, r[k + "_rank"]) for k in ("people", "jobs", "biz", "money") if r.get(k) is not None and r.get(k + "_rank")]
+    out = []
+    if r.get("rank"):
+        out.append(f"{r['name']} ranks {ordinal(r['rank'])} of {n} {group} on momentum.")
+    if ranks:
+        best = min(ranks, key=lambda x: x[1])
+        worst = max(ranks, key=lambda x: x[1])
+        ph = PHRASE[layer]
+        lo, hi = n * 0.25, n * 0.75
+        if len(ranks) > 1 and worst[1] <= lo:
+            out.append(f"It is in the top quarter on every lens; even its weakest, {ph[worst[0]]} ({pct(r[worst[0]])}), ranks {ordinal(worst[1])}.")
+        elif len(ranks) > 1 and best[1] > hi:
+            out.append(f"It is in the bottom quarter on every lens; its strongest, {ph[best[0]]} ({pct(r[best[0]])}), ranks {ordinal(best[1])}.")
+        elif worst[0] != best[0]:
+            out.append(f"Its strongest lens is {ph[best[0]]} ({pct(r[best[0]])}, {ordinal(best[1])}); "
+                       f"its weakest is {ph[worst[0]]} ({pct(r[worst[0]])}, {ordinal(worst[1])}).")
+        else:
+            out.append(f"Its one ranked lens is {ph[best[0]]} ({pct(r[best[0]])}, {ordinal(best[1])}).")
+    if extra:
+        out.append(extra)
+    return " ".join(out)
+
+
+def first_sentences(text: str, limit: int = 190) -> str:
+    """Meta description: whole sentences up to ~190 characters (search engines cut at ~160; two sentences read better)."""
+    out = ""
+    for sent in re.split(r"(?<=\.)\s+", text):
+        if len(out) + len(sent) + 1 > limit and out:
+            break
+        out = f"{out} {sent}".strip()
+    return out
+
+
 # ── page shell ───────────────────────────────────────────────────────────
 
 def icon(k, cls="ic"):
@@ -511,13 +565,14 @@ def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") 
 <link rel="apple-touch-icon" href="{U('/assets/icon-192.png')}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..700&family=Noto+Sans+Thai:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..750&family=Inter:wght@400..700&family=Noto+Sans+Thai:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer&family=Noto+Sans+Lao&family=Noto+Sans+Myanmar&text={NATIVE_GLYPHS}&display=swap">
 <link rel="stylesheet" href="{U('/assets/app.css')}?v={v}">
 <script type="speculationrules">{{"prerender":[{{"where":{{"href_matches":"{BASE}/*"}},"eagerness":"moderate"}}]}}</script>
 {extra_head}{ld}
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">{HATCH}</svg>
 <div class="progress" aria-hidden="true"></div>
 <a class="skip" href="#main">Skip to content</a>
 <header class="top">
@@ -559,8 +614,9 @@ def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") 
 
 def lens_tabs(include_score=True, default="score", label="Lens"):
     items = ([("score", "Momentum")] if include_score else []) + [(k, lab) for k, lab, *_ in LENSES]
-    return (f'<div class="lenses" role="tablist" aria-label="{esc(label)}">'
-            + "".join(f'<button role="tab" data-lens="{k}" aria-selected="{str(k == default).lower()}">{icon(k)}<span>{esc(lab)}</span></button>'
+    # a group of toggle buttons: they recolour the map and reorder the list beside it, they don't swap panels
+    return (f'<div class="lenses" role="group" aria-label="{esc(label)}">'
+            + "".join(f'<button type="button" data-lens="{k}" aria-pressed="{str(k == default).lower()}">{icon(k)}<span>{esc(lab)}</span></button>'
                       for k, lab in items)
             + '<span class="lens-ink" aria-hidden="true"></span></div>')
 
@@ -660,8 +716,6 @@ def main():
         fp.write_text(content, encoding="utf-8")
         pages.append(path)
 
-    HATCH = ('<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
-             '<rect width="5" height="5" class="hb"/><line x1="0" y1="0" x2="0" y2="5" class="hl"/></pattern></defs>')
 
     # ── region map
     def sea_map(highlight=None, interactive=True):
@@ -680,10 +734,11 @@ def main():
         ctx_paths, shapes, labels = "", "", ""
         for f in feats:
             rings = [[SEA_PROJ(x, y) for x, y in r] for r in f["rings"]]
-            d = path_d(rings)
-            if not f["sea"]:
-                ctx_paths += f'<path d="{d}"/>'
+            # the interactive map keeps ~0.4px detail; the thumbnail on country pages needs far less
+            if not f["sea"]:                    # neighbours are backdrop only: coarse is fine
+                ctx_paths += f'<path d="{path_d(rings, tol=1.6, min_len=4.0)}"/>'
                 continue
+            d = path_d(rings, tol=0.5, min_len=1.0) if interactive else path_d(rings, tol=1.4, min_len=3.0)
             r = R[f["iso3"]]
             # label at the bbox centre of the largest ring
             big_ring = max(rings, key=lambda rg: (max(p[0] for p in rg) - min(p[0] for p in rg)) * (max(p[1] for p in rg) - min(p[1] for p in rg)))
@@ -702,7 +757,7 @@ def main():
                 shapes += f'<g{cls}>{body}</g>'
             lx, ly = SEA_PROJ(*LABEL_AT[f["iso3"]]) if f["iso3"] in LABEL_AT else (cx, cy)
             labels += f'<text x="{lx:.1f}" y="{ly + 4:.1f}" text-anchor="middle">{esc(r["name"])}</text>'
-        return (f'<svg class="map sea" data-lens="score" viewBox="0 0 {W:.0f} {H:.0f}" role="group" aria-label="Map of Southeast Asia">{HATCH}'
+        return (f'<svg class="map sea" data-lens="score" viewBox="0 0 {W:.0f} {H:.0f}" role="group" aria-label="Map of Southeast Asia">'
                 f'<rect class="sea-bg" width="{W:.0f}" height="{H:.0f}"/><g class="grat">{grat}</g><g class="ctx">{ctx_paths}</g>'
                 f'<g class="units">{shapes}</g><g class="labels" aria-hidden="true">{labels}</g><g class="coords" aria-hidden="true">{ticks}</g></svg>')
 
@@ -732,17 +787,26 @@ def main():
                     dots += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.4"/>'
         if mini:
             return f'<svg class="map mini" viewBox="0 0 {TW:.0f} {TH:.0f}" aria-hidden="true"><g>{shapes}</g><g class="dots">{dots}</g></svg>'
-        return (f'<svg class="map th" data-lens="score" viewBox="0 0 {TW:.0f} {TH:.0f}" role="group" aria-label="Map of Thailand by province">{HATCH}'
+        return (f'<svg class="map th" data-lens="score" viewBox="0 0 {TW:.0f} {TH:.0f}" role="group" aria-label="Map of Thailand by province">'
                 f'<g class="units">{shapes}</g></svg>')
 
     # Vietnam: 34 provinces drawn from 63 old shapes. Fills carry no stroke; outlines and former borders are
     # separate layers built from shared TopoJSON arcs (etl/vn_geo.py), so merged provinces show no seam.
     vn_rings = {k: [[VN_PROJ(x, y) for x, y in r] for r in rs] for k, rs in vgeo["provinces"].items()}
-    vn_full = {k: path_d(v, min_len=0.6) for k, v in vn_rings.items()}
+    vn_full = {k: path_d(v, tol=0.6, min_len=2.0) for k, v in vn_rings.items()}
     vn_mini = {k: path_d(v, tol=1.0, min_len=2.0) for k, v in vn_rings.items()}
-    vn_line = lambda arcs, ml=0.0: "".join("M" + "L".join(f"{x:.1f},{y:.1f}" for x, y in (VN_PROJ(*pt) for pt in a)) for a in arcs
-                                         if len(a) > 1 and (max(p[0] for p in a) - min(p[0] for p in a) + max(p[1] for p in a) - min(p[1] for p in a)) * 40 >= ml)
-    vn_outline, vn_former = vn_line(vgeo["outline"], 0.8), vn_line(vgeo["former"])
+
+    def vn_line(arcs, min_extent=0.0, tol=0.6):
+        """Open polylines (outline / former borders), simplified per arc so neighbours still meet."""
+        out = []
+        for a in arcs:
+            pts = simplify([VN_PROJ(*pt) for pt in a], tol)
+            xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+            if len(pts) > 1 and (max(xs) - min(xs)) + (max(ys) - min(ys)) >= min_extent:
+                out.append("M" + "L".join(f"{x:.1f},{y:.1f}" for x, y in pts))
+        return "".join(out)
+
+    vn_outline, vn_former = vn_line(vgeo["outline"], 2.0), vn_line(vgeo["former"])
     VW = max(x for rs in vn_rings.values() for r in rs for x, _ in r) + 4
     VH = max(y for rs in vn_rings.values() for r in rs for _, y in r) + 4
 
@@ -758,7 +822,7 @@ def main():
                        f'<path d="{vn_full[k]}" {lens_attrs(v, lens_keys)}/></a>')
         if mini:
             return f'<svg class="map mini vn" viewBox="0 0 {VW:.0f} {VH:.0f}" aria-hidden="true"><g>{shapes}</g></svg>'
-        return (f'<svg class="map vn" data-lens="score" viewBox="0 0 {VW:.0f} {VH:.0f}" role="group" aria-label="Map of Vietnam by province (2025 boundaries)">{HATCH}'
+        return (f'<svg class="map vn" data-lens="score" viewBox="0 0 {VW:.0f} {VH:.0f}" role="group" aria-label="Map of Vietnam by province (2025 boundaries)">'
                 f'<g class="units">{shapes}</g><path class="former" d="{vn_former}"/><path class="outline" d="{vn_outline}"/></svg>')
 
     # ── ranked lists (reorder with FLIP on lens change)
@@ -824,7 +888,7 @@ def main():
 <section class="atlas" id="atlas">
   <div class="atlas-map">
     {lens_tabs(label="Region lens")}
-    <div class="mapframe">{sea_map()}</div>
+    <a class="skip-map" href="#after-map-1">Skip the map</a><div class="mapframe">{sea_map()}</div><span id="after-map-1" tabindex="-1"></span>
     {legend("the 11 countries")}
   </div>
   <aside class="atlas-side">
@@ -842,7 +906,7 @@ def main():
     <a class="btn" href="{U('/thailand/')}">Open the Thailand explorer</a>
   </div>
   <div class="split-body">
-    <div class="split-map">{lens_tabs(label="Thailand lens")}<div class="mapframe">{th_map()}</div>{legend("Thailand's 77 provinces")}</div>
+    <div class="split-map">{lens_tabs(label="Thailand lens")}<a class="skip-map" href="#after-map-2">Skip the map</a><div class="mapframe">{th_map()}</div><span id="after-map-2" tabindex="-1"></span>{legend("Thailand's 77 provinces")}</div>
     <div class="split-list">{th_lists}</div>
   </div>
 </section>
@@ -853,7 +917,7 @@ def main():
     <a class="btn" href="{U('/vietnam/')}">Open the Vietnam explorer</a>
   </div>
   <div class="split-body">
-    <div class="split-map">{lens_tabs(label="Vietnam lens")}<div class="mapframe">{vn_map()}</div>{legend("Vietnam's 34 provinces")}</div>
+    <div class="split-map">{lens_tabs(label="Vietnam lens")}<a class="skip-map" href="#after-map-3">Skip the map</a><div class="mapframe">{vn_map()}</div><span id="after-map-3" tabindex="-1"></span>{legend("Vietnam's 34 provinces")}</div>
     <div class="split-list">{vn_lists}</div>
   </div>
 </section>
@@ -908,6 +972,12 @@ def main():
                         ("Remittances in", f"{big(r['remit'], '$')} ({r['remit_year']})" if r["remit"] else "–")],
                        annual(S["money"], "$", "Real GDP (constant 2015 US$)"))
         )
+        extra = ""
+        if r["fdi"] and r["gdp_usd"]:
+            extra = f"Foreign direct investment brought in {big(r['fdi'], '$')} in {r['fdi_year']}, {r['fdi'] / r['gdp_usd'] * 100:.1f}% of GDP."
+        if r["pop"] and r["pop"] < 3e6:
+            extra += " With so small an economy, single-year changes swing widely; read them with care."
+        summary = brief(r, "region", 11, "Southeast Asian countries", extra.strip())
         deep = ""
         if r["iso"] == "THA":
             deep = (f'<section class="callout reveal"><h2>Go deeper: 77 provinces, 264 districts</h2>'
@@ -924,7 +994,7 @@ def main():
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(r['name'])} {native(r['native'], lang)}</h1>
-  <p class="lede">Momentum {('%.0f' % r['score']) if r['score'] is not None else '–'} out of 100, #{r.get('rank', '–')} of 11 Southeast Asian countries.</p></div>
+  <p class="lede">{esc(summary)}</p></div>
   <div class="mini-sea">{sea_map(highlight=r['iso'], interactive=False)}</div>
 </section>
 <div class="panels">{panels}</div>
@@ -933,7 +1003,7 @@ def main():
 """
         path = c_url(r)
         write(path, page(U(path), f"{r['name']}: population, jobs, businesses and GDP growth | Where Money Moves",
-                         f"{r['name']}: urban population {pct(r['people'])}, employment {pct(r['jobs'])}, new firms {pct(r['biz'])}, real GDP {pct(r['money'])}. Ranked #{r.get('rank', '–')} of 11 in Southeast Asia.",
+                         first_sentences(summary),
                          body, meta, crumbs=[("Southeast Asia", "/"), (r["name"], path)],
                          watch={"id": f"c-{r['iso']}", "name": r["name"], "url": U(path)}))
 
@@ -950,7 +1020,7 @@ def main():
 </section>
 <section class="split flush">
   <div class="split-body">
-    <div class="split-map">{lens_tabs(label="Thailand lens")}<div class="mapframe tall">{th_map()}</div>{legend("Thailand's 77 provinces")}</div>
+    <div class="split-map">{lens_tabs(label="Thailand lens")}<a class="skip-map" href="#after-map-4">Skip the map</a><div class="mapframe tall">{th_map()}</div><span id="after-map-4" tabindex="-1"></span>{legend("Thailand's 77 provinces")}</div>
     <div class="split-list">
       <dl class="asof">{"".join(f'<div>{icon(k)}<dt>{esc(LENS[k][0])}</dt><dd>{esc(LENS[k][2])}<br><small>{esc(base_of[k])} to {esc(asof[k])}</small></dd></div>' for k in lens_keys)}</dl>
     </div>
@@ -1015,10 +1085,17 @@ def main():
             dtable += ('<section class="reveal"><h2>Dropped from the bank table</h2><p class="sub">Fell below four commercial banks during the year.</p><ul class="chips">'
                        + "".join(f'<li><a href="{U(d_url(d))}">{esc(d["name_en"])}</a></li>' for d in gone) + "</ul></section>")
         near = sorted([o for o in T.values() if o["region"] == t["region"] and o is not t], key=lambda o: -(o["score"] or 0))[:8]
+        added = t["insured"] - dict(t["ins_series"])[sso["years"][-2]]
+        extra = f"Formal employment {'grew by' if added >= 0 else 'fell by'} {abs(added):,} people in {sso['years'][-1]}."
+        if t["br_change"]:
+            extra += f" Banks {'closed' if t['br_change'] < 0 else 'opened'} {abs(t['br_change'])} branch{'es' if abs(t['br_change']) != 1 else ''} in the year to {month_label(latest)}."
+        elif t["money"] is None:
+            extra += " No district here has four commercial banks, so there are no bank figures."
+        summary = brief(t, "th", 77, "Thai provinces", extra)
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(t['name'])} {native(t['native'])}</h1>
-  <p class="lede">Momentum {('%.0f' % t['score']) if t['score'] is not None else '–'} out of 100, #{t.get('rank', '–')} of 77 provinces.{f" GPP per head {t['gpp_pc']:,.0f} baht ({ctx['year']})." if t['gpp_pc'] else ""}</p></div>
+  <p class="lede">{esc(summary)}</p></div>
   {th_map(highlight=tis, mini=True)}
 </section>
 <div class="panels">{panels}</div>
@@ -1027,12 +1104,13 @@ def main():
 """
         path = p_url(t)
         write(path, page(U(path), f"{t['name']} province: population, jobs, businesses and bank money | Where Money Moves",
-                         f"{t['name']}, Thailand: registered population {pct(t['people'])}, formal jobs {pct(t['jobs'])}, employers {pct(t['biz'])}, deposits {pct(t['money'])}. #{t.get('rank', '–')} of 77 provinces.",
+                         first_sentences(summary),
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/"), (t["name"], path)],
                          watch={"id": f"p-{tis}", "name": t["name"], "url": U(path)}))
 
     # ── DISTRICT pages
     nD = len([d for d in D if d.get("score") is not None])
+    dep_rank = {d["id"]: i for i, d in enumerate(sorted([d for d in D if d["in_latest"] and d["dep_yoy"] is not None], key=lambda d: -d["dep_yoy"]), 1)}
     for d in D:
         t = T[d["prov"]]
         unit = "Khet" if d["prov"] == "10" else "District"
@@ -1042,6 +1120,18 @@ def main():
             notes += f'<p class="warn">Not in the latest Bank of Thailand table. Last figures: {month_label(lp)}.</p>'
         if d["cr_yoy"] is not None and abs(d["cr_yoy"]) > SPIKE:
             notes += '<p class="warn">Credit moved more than 50% in a year. This usually means one large borrower or loans moved between branches.</p>'
+        if d["dep_yoy"] is not None and d["in_latest"]:
+            summary = (f"Bank deposits {'grew' if d['dep_yoy'] >= 0 else 'fell'} {pct(abs(d['dep_yoy']))[1:]} in the year to {month_label(latest)}, "
+                       f"{ordinal(dep_rank[d['id']])} of {len(dep_rank)} districts")
+            if d["cr_yoy"] is not None:
+                summary += f", while credit {'rose' if d['cr_yoy'] >= 0 else 'fell'} {pct(abs(d['cr_yoy']))[1:]}"
+            summary += "."
+            if d["br_change"]:
+                summary += f" It {'lost' if d['br_change'] < 0 else 'gained'} {abs(d['br_change'])} bank branch{'es' if abs(d['br_change']) != 1 else ''}, to {d['branches']}."
+            if d.get("prov_rank"):
+                summary += f" {ordinal(d['prov_rank']).capitalize()} in {t['name']} on bank money."
+        else:
+            summary = "Not in the latest Bank of Thailand table, which lists only districts with four or more commercial banks."
         ser = d["series"]
         mlabel = lambda p: p[:4] if p.endswith("-01") else ""
         charts = (chart([(r[0], r[1] and r[1] / 1e6) for r in ser], "Deposits, million baht", x_label=mlabel, every=1, base=y1)
@@ -1060,7 +1150,7 @@ def main():
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(d['name_en'])} {native(d['name_th'])}</h1>
-  <p class="lede">{unit} in <a href="{U(p_url(t))}">{esc(t['name'])}</a>{f", #{d['prov_rank']} in the province on bank money" if d.get('prov_rank') else ""}.</p>
+  <p class="lede">{unit} in <a href="{U(p_url(t))}">{esc(t['name'])}</a>. {esc(summary)}</p>
   {notes}</div>
 </section>
 <section class="stats reveal">{stats}</section>
@@ -1071,7 +1161,7 @@ def main():
 """
         path = d_url(d)
         write(path, page(U(path), f"{d['name_en']}, {t['name']}: bank deposits and credit ({month_label(latest)}) | Where Money Moves",
-                         f"{d['name_en']} {unit.lower()}, {t['name']}, Thailand: deposits {pct(d['dep_yoy'])} and credit {pct(d['cr_yoy'])} year on year, {d['branches'] or '–'} bank branches.",
+                         first_sentences(f"{d['name_en']}, {t['name']}, Thailand. {summary}"),
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/"), (t["name"], p_url(t)), (d["name_en"], path)],
                          watch={"id": f"d-{d['id']}", "name": f"{d['name_en']}, {t['name']}", "url": U(path)}))
 
@@ -1092,7 +1182,7 @@ def main():
 </section>
 <section class="split flush">
   <div class="split-body">
-    <div class="split-map">{lens_tabs(label="Vietnam lens")}<div class="mapframe tall">{vn_map()}</div>{legend("Vietnam's 34 provinces")}
+    <div class="split-map">{lens_tabs(label="Vietnam lens")}<a class="skip-map" href="#after-map-5">Skip the map</a><div class="mapframe tall">{vn_map()}</div><span id="after-map-5" tabindex="-1"></span>{legend("Vietnam's 34 provinces")}
       <p class="note">Dashed lines are the provincial borders before 1 July 2025.</p></div>
     <div class="split-list">
       <dl class="asof">{"".join(f'<div>{icon(k)}<dt>{esc(LENS[k][0])}</dt><dd>{esc(VN_DESC[k])}<br><small>{esc(vlab[k][0])}</small></dd></div>' for k in vk)}</dl>
@@ -1150,10 +1240,24 @@ def main():
                   f'<th scope="col" class="num"><button data-k="3">Jobs</button></th><th scope="col" class="num"><button data-k="4">New businesses</button></th>'
                   f'<th scope="col" class="num"><button data-k="5">Revenue</button></th></tr></thead><tbody>{rows}</tbody></table></div></section>')
         near = sorted([o for o in V.values() if o is not v], key=lambda o: -(o["score"] or 0))[:10]
+        extra = ""
+        if v["netmig"] is not None:
+            extra = (f"More people moved in than out in {v['netmig_year']}, a net gain of {v['netmig']:.1f} per 1,000 residents." if v["netmig"] > 0.05
+                     else f"More people moved out than in during {v['netmig_year']}, a net loss of {abs(v['netmig']):.1f} per 1,000 residents." if v["netmig"] < -0.05
+                     else f"Migration in and out roughly balanced in {v['netmig_year']}.")
+        if merged:
+            def nb(dd):
+                ser = sorted(dd["new_firms"].items())
+                return growth(ser[-1][1], ser[-2][1]) if len(ser) == 2 else None
+            fb = [(name, nb(dd)) for name, dd in v["former_detail"].items() if nb(dd) is not None]
+            if fb:
+                top = max(fb, key=lambda x: x[1])
+                extra += f" Of its former provinces, {top[0]} grew new business registrations fastest ({pct(top[1])})."
+        summary = brief(v, "vn", 34, "Vietnamese provinces", extra.strip())
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(v['name'])} {native(v['native'], 'vi')}</h1>
-  <p class="lede">Momentum {('%.0f' % v['score']) if v['score'] is not None else '–'} out of 100, #{v.get('rank', '–')} of 34 provinces. {esc(formed)}</p></div>
+  <p class="lede">{esc(summary)}</p><p class="sub formed">{esc(formed)}</p></div>
   {vn_map(highlight=slug_, mini=True)}
 </section>
 <div class="panels">{panels}</div>
@@ -1162,8 +1266,7 @@ def main():
 """
         path = v_url(v)
         write(path, page(U(path), f"{v['name']}, Vietnam: population, jobs, new businesses and revenue | Where Money Moves",
-                         f"{v['name']} province, Vietnam (2025 boundaries): population {pct(v['people'])}, employment {pct(v['jobs'])}, new enterprises {pct(v['biz'])}, enterprise revenue {pct(v['money'])}."
-                         + (f" Formed from {', '.join(v['former'])}." if merged else ""),
+                         first_sentences(summary + (f" Formed in 2025 from {', '.join(v['former'])}." if merged else "")),
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/"), (v["name"], path)],
                          watch={"id": f"v-{slug_}", "name": f"{v['name']}, Vietnam", "url": U(path)}))
 
