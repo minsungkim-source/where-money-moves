@@ -1,18 +1,18 @@
 """
-Where Money Moves TH — 정적 사이트 생성기
+Where Money Moves — static site generator (English only).
 
-  python build.py        # data/processed/*.json → site/
+  python build.py                     # data/processed/*.json → site/
+  BASE_PATH=/repo SITE_URL=https://… python build.py   # for hosting under a sub-path
 
-페이지 (언어마다, th · en):
-  /{lang}/                              홈: 지도 + 순위
-  /{lang}/province/{p}/                 주 77개 (점수 없는 9개 주도 '데이터 없음' 페이지를 만든다)
-  /{lang}/district/{p}/{d}/             군 (BOT 표에 한 번이라도 나온 군 전부)
-  /{lang}/rankings/{key}/               순위 5종
-  /{lang}/about/                        방법론·출처
-+ /index.html(언어 선택), sitemap.xml, robots.txt, manifest, sw.js, search-{lang}.json
+"See where people, jobs, businesses and money are moving across Southeast Asia."
 
-런타임 백엔드 없음. 페이지는 JS 없이도 전부 읽힌다 — JS는 지도 탭·검색·정렬·설치만 맡는다.
-화면 문구는 이 파일의 STR 한 곳에만 둔다. th가 기준 형태이고 en은 같은 키를 가져야 한다.
+Two layers, never mixed on one axis:
+  · Region    — 11 countries, World Bank (comparable definitions)
+  · Thailand  — 77 provinces × 4 lenses (DOPA, SSO, SSO-as-proxy, BOT) and 264 districts (BOT money)
+
+Pages: /, /country/{c}/, /thailand/, /thailand/{p}/, /thailand/{p}/{d}/, /rankings/…, /compare/, /about/, 404.
+Every page reads fully without JS. JS adds lens switching, tooltips, command palette, watchlist,
+compare, toasts, theme, share and install. Standard library only, so Vercel / Actions can run it as-is.
 """
 
 from __future__ import annotations
@@ -20,8 +20,10 @@ from __future__ import annotations
 import html
 import json
 import math
+import os
 import re
 import shutil
+import urllib.parse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -29,303 +31,111 @@ DATA = ROOT / "data" / "processed"
 REF = ROOT / "data" / "reference"
 STATIC = ROOT / "static"
 OUT = ROOT / "site"
-SITE_URL = "https://wheremoneymoves-th.vercel.app"     # 배포 주소가 정해지면 바꾼다
-# 주 맥락값(인구·1인당 GPP, NESDC). blindspot-th ETL이 굽는 값을 슬림하게 옮겨 둔 것 —
-# Vercel 빌드에는 옆 폴더가 없으므로 이 저장소 안의 사본을 읽는다.
-CONTEXT = REF / "nesdc_context.json"
+SITE_URL = os.environ.get("SITE_URL", "https://wheremoneymoves.vercel.app").rstrip("/")   # origin only, no path
+BASE = os.environ.get("BASE_PATH", "").rstrip("/")
 
-LANGS = ("th", "en")
-
-# ── 문구 ─────────────────────────────────────────────────────────────────
-
-STR = {
-    "th": {
-        "brand": "เงินไหลไปไหน",
-        "brand_sub": "Where Money Moves",
-        "tagline": "เงินฝากและสินเชื่อธนาคารพาณิชย์รายอำเภอ เทียบกับปีก่อน",
-        "hero": "เงินกำลังไหลไปที่ไหน",
-        "hero_sub": "ดูว่าอำเภอไหนเงินฝากและสินเชื่อโตเร็วที่สุด และที่ไหนเงินกำลังไหลออก จากข้อมูลธนาคารแห่งประเทศไทยรายเดือน",
-        "data_as_of": "ข้อมูลเดือน {p}",
-        "prelim": "ตัวเลขเบื้องต้น",
-        "national_dep": "เงินฝากรวม (อำเภอที่เข้าเกณฑ์)",
-        "vs_last_year": "เทียบ {p}",
-        "score": "คะแนนโมเมนตัมเงิน",
-        "score_short": "คะแนน",
-        "deposits": "เงินฝาก",
-        "credits": "สินเชื่อ",
-        "branches": "สาขา",
-        "branch_change": "สาขาเปลี่ยนแปลง",
-        "yoy": "เทียบปีก่อน",
-        "three_year": "เงินฝาก 3 ปี",
-        "dep_balance": "ยอดเงินฝาก",
-        "rank_of": "อันดับ {r} จาก {n}",
-        "n_districts": "อำเภอ",
-        "n_provinces": "จังหวัด",
-        "province": "จังหวัด",
-        "district": "อำเภอ",
-        "khet": "เขต",
-        "map_title": "แผนที่โมเมนตัมเงินรายจังหวัด",
-        "map_hint": "แตะจังหวัดเพื่อดูตัวเลข",
-        "metric_score": "คะแนน",
-        "metric_dep": "เงินฝาก",
-        "metric_cr": "สินเชื่อ",
-        "legend_low": "ต่ำ",
-        "legend_high": "สูง",
-        "no_data": "ไม่มีข้อมูล",
-        "open_page": "ดูรายละเอียด",
-        "top_districts": "อำเภอที่เงินโตเร็วที่สุด",
-        "top_provinces": "จังหวัดที่เงินโตเร็วที่สุด",
-        "money_leaving": "อำเภอที่เงินฝากลดลงมากที่สุด",
-        "branch_losers": "อำเภอที่สาขาธนาคารลดลงมากที่สุด",
-        "dropped_title": "หลุดจากตาราง ธปท. ในปีที่ผ่านมา",
-        "dropped_note": "ธปท. เผยแพร่เฉพาะอำเภอที่มีธนาคารพาณิชย์ตั้งแต่ 4 แห่งขึ้นไป อำเภอเหล่านี้เคยอยู่ในตารางเมื่อ {p} แต่ไม่อยู่ในเดือนล่าสุด",
-        "view_all": "ดูทั้งหมด",
-        "search": "ค้นหาจังหวัดหรืออำเภอ",
-        "search_none": "ไม่พบ",
-        "rankings": "อันดับ",
-        "about": "วิธีคิดและที่มา",
-        "home": "หน้าแรก",
-        "coverage": "นับเฉพาะอำเภอที่มีธนาคารพาณิชย์ตั้งแต่ 4 แห่งขึ้นไป: {n} จาก {total} อำเภอของจังหวัดนี้",
-        "coverage_none": "จังหวัดนี้ไม่มีอำเภอที่อยู่ในตาราง ธปท. ในเดือนล่าสุด จึงยังไม่มีคะแนน",
-        "district_table": "อำเภอในจังหวัดนี้",
-        "national_rank": "อันดับประเทศ",
-        "in_province": "ในจังหวัด",
-        "trend": "แนวโน้มเงินฝาก",
-        "chart_dep": "เงินฝาก (ล้านบาท)",
-        "chart_cr": "สินเชื่อ (ล้านบาท)",
-        "chart_br": "จำนวนสาขา",
-        "monthly_table": "ตัวเลขรายเดือน",
-        "month": "เดือน",
-        "spike": "สินเชื่อเปลี่ยนแปลงผิดปกติ อาจมาจากสินเชื่อรายใหญ่ไม่กี่ราย หรือการย้ายบัญชีระหว่างสาขา",
-        "not_in_latest": "อำเภอนี้ไม่อยู่ในตาราง ธปท. เดือนล่าสุด (ข้อมูลล่าสุดที่มี: {p})",
-        "other_districts": "อำเภออื่นในจังหวัดเดียวกัน",
-        "context": "ข้อมูลประกอบ",
-        "population": "ประชากร",
-        "gpp_pc": "GPP ต่อหัว",
-        "context_src": "สศช. ปี {y}",
-        "rk_districts": "อำเภอ: คะแนนโมเมนตัมเงิน",
-        "rk_provinces": "จังหวัด: คะแนนโมเมนตัมเงิน",
-        "rk_deposit": "อำเภอ: เงินฝากโตเร็วที่สุด",
-        "rk_credit": "อำเภอ: สินเชื่อโตเร็วที่สุด",
-        "rk_branches": "อำเภอ: สาขาธนาคารเปลี่ยนแปลง",
-        "rk_desc": "{what} เทียบ {p1} กับ {p0} จากข้อมูลธนาคารแห่งประเทศไทย",
-        "sort": "เรียงตาม",
-        "install": "ติดตั้งบนหน้าจอหลัก",
-        "nominal": "มูลค่าตามราคาปัจจุบัน ไม่ปรับเงินเฟ้อ",
-        "src_line": "ที่มา: ธนาคารแห่งประเทศไทย (รายงานเงินฝากและสินเชื่อจำแนกตามอำเภอ) · ขอบเขตการปกครอง: thailand-canonical-admin-names (CC BY 4.0), geoBoundaries/OCHA (CC BY 3.0 IGO)",
-        "built": "สร้างเมื่อ {d}",
-        "score_explain": "คะแนน 0–100 = ค่าเฉลี่ยของเปอร์เซ็นไทล์อัตราการเติบโตของเงินฝากและสินเชื่อเทียบปีก่อน ในบรรดา {n} อำเภอ (จังหวัด: เทียบกันเอง {m} จังหวัด)",
-        "lang_other": "English",
-        "million": "ล้านบาท",
-        "title_home": "เงินไหลไปไหน — อำเภอไหนเงินฝากและสินเชื่อโตเร็วที่สุด ({p})",
-        "desc_home": "อันดับอำเภอและจังหวัดที่เงินฝากและสินเชื่อธนาคารโตเร็วที่สุดในประเทศไทย เทียบปีก่อน ข้อมูล ธปท. เดือน {p}",
-        "title_prov": "{name}: เงินฝาก สินเชื่อ และสาขาธนาคาร ({p}) — เงินไหลไปไหน",
-        "desc_prov": "{name} เงินฝากเทียบปีก่อน {dep} สินเชื่อ {cr} อันดับ {rank} ของประเทศ ข้อมูล ธปท. เดือน {p}",
-        "title_dist": "{name} {prov}: เงินฝากและสินเชื่อ ({p}) — เงินไหลไปไหน",
-        "desc_dist": "{unit}{name} จังหวัด{prov} เงินฝากเทียบปีก่อน {dep} สินเชื่อ {cr} จำนวนสาขา {br} ข้อมูล ธปท. เดือน {p}",
-        "about_body": [
-            ("ข้อมูลมาจากไหน", "ธนาคารแห่งประเทศไทยเผยแพร่ยอดเงินฝาก สินเชื่อ และจำนวนสาขาของธนาคารพาณิชย์รายอำเภอทุกเดือน เว็บนี้ดาวน์โหลดไฟล์นั้นโดยตรงและไม่ได้แก้ตัวเลข"),
-            ("ขอบเขต", "ธปท. เผยแพร่เฉพาะอำเภอที่มีธนาคารพาณิชย์ตั้งแต่ 4 แห่งขึ้นไป เดือนล่าสุดมี {n} อำเภอ อำเภอที่ไม่อยู่ในตารางไม่ได้แปลว่าไม่มีเงิน แต่เราไม่มีตัวเลขของอำเภอนั้น ยอดของสำนักงานใหญ่ (Head Office) ไม่นับเป็นพื้นที่ใด"),
-            ("คะแนนคิดอย่างไร", "เทียบเดือนล่าสุดกับเดือนเดียวกันของปีก่อน เฉพาะอำเภอที่มีตัวเลขทั้งสองเดือน แล้วแปลงอัตราการเติบโตของเงินฝากและสินเชื่อเป็นเปอร์เซ็นไทล์ (0–100) และเฉลี่ยกัน ใช้เปอร์เซ็นไทล์เพราะกรุงเทพฯ ใหญ่กว่าที่อื่นมาก ตัวเลขจริงจะทำให้ที่อื่นแยกกันไม่ออก"),
-            ("ระดับจังหวัด", "รวมเฉพาะอำเภอที่อยู่ในตารางทั้งสองเดือน จึงไม่ใช่ยอดทั้งจังหวัด จังหวัดที่ไม่มีอำเภอเข้าเกณฑ์จะไม่มีคะแนน"),
-            ("ข้อควรระวัง", "ตัวเลขเป็นมูลค่าตามราคาปัจจุบัน ไม่ปรับเงินเฟ้อ สินเชื่อรายอำเภออาจกระโดดได้เมื่อมีสินเชื่อรายใหญ่หรือการย้ายบัญชีระหว่างสาขา เราจะติดป้ายเตือนเมื่อสินเชื่อเปลี่ยนเกิน ±50% ในหนึ่งปี ตัวเลขบางช่องของ ธปท. ถูกปิดไว้เมื่อลูกหนี้น้อยกว่า 5 ราย แต่ยอดรวมยังเผยแพร่ครบ"),
-            ("ต่อไป", "เราจะเพิ่มประชากร (กรมการปกครอง) การจ้างงาน (ประกันสังคม) และนิติบุคคลใหม่ (กรมพัฒนาธุรกิจการค้า) เมื่อยืนยันแหล่งข้อมูลได้แล้ว"),
-        ],
-    },
-    "en": {
-        "brand": "Where Money Moves",
-        "brand_sub": "Thailand",
-        "tagline": "Commercial-bank deposits and credit by district, year over year",
-        "hero": "Where is the money moving?",
-        "hero_sub": "See which Thai districts are growing deposits and credit fastest, and where money is leaving. Built from monthly Bank of Thailand data.",
-        "data_as_of": "Data for {p}",
-        "prelim": "preliminary",
-        "national_dep": "Deposits, covered districts",
-        "vs_last_year": "vs {p}",
-        "score": "Money Momentum Score",
-        "score_short": "Score",
-        "deposits": "Deposits",
-        "credits": "Credit",
-        "branches": "Branches",
-        "branch_change": "Branch change",
-        "yoy": "year over year",
-        "three_year": "Deposits, 3 years",
-        "dep_balance": "Deposit balance",
-        "rank_of": "#{r} of {n}",
-        "n_districts": "districts",
-        "n_provinces": "provinces",
-        "province": "Province",
-        "district": "District",
-        "khet": "Khet",
-        "map_title": "Money momentum by province",
-        "map_hint": "Tap a province to see its numbers",
-        "metric_score": "Score",
-        "metric_dep": "Deposits",
-        "metric_cr": "Credit",
-        "legend_low": "Low",
-        "legend_high": "High",
-        "no_data": "No data",
-        "open_page": "Open page",
-        "top_districts": "Fastest-growing districts",
-        "top_provinces": "Fastest-growing provinces",
-        "money_leaving": "Where deposits fell most",
-        "branch_losers": "Where bank branches shrank most",
-        "dropped_title": "Dropped from the BOT table this year",
-        "dropped_note": "The Bank of Thailand only publishes districts with four or more commercial banks. These districts were in the table in {p} but not in the latest month.",
-        "view_all": "See all",
-        "search": "Search a province or district",
-        "search_none": "No match",
-        "rankings": "Rankings",
-        "about": "Method & sources",
-        "home": "Home",
-        "coverage": "Counts only districts with four or more commercial banks: {n} of this province's {total} districts",
-        "coverage_none": "No district of this province is in the latest BOT table, so it has no score yet.",
-        "district_table": "Districts in this province",
-        "national_rank": "National rank",
-        "in_province": "in province",
-        "trend": "Deposit trend",
-        "chart_dep": "Deposits (million baht)",
-        "chart_cr": "Credit (million baht)",
-        "chart_br": "Branches",
-        "monthly_table": "Monthly figures",
-        "month": "Month",
-        "spike": "Unusual credit swing. Often one or a few large borrowers, or loans moved between branches.",
-        "not_in_latest": "This district is not in the latest BOT table (last available: {p}).",
-        "other_districts": "Other districts in this province",
-        "context": "Context",
-        "population": "Population",
-        "gpp_pc": "GPP per capita",
-        "context_src": "NESDC {y}",
-        "rk_districts": "Districts by Money Momentum Score",
-        "rk_provinces": "Provinces by Money Momentum Score",
-        "rk_deposit": "Districts by deposit growth",
-        "rk_credit": "Districts by credit growth",
-        "rk_branches": "Districts by bank-branch change",
-        "rk_desc": "{what}, {p1} vs {p0}, from Bank of Thailand data.",
-        "sort": "Sort by",
-        "install": "Install app",
-        "nominal": "Nominal values, not inflation-adjusted",
-        "src_line": "Source: Bank of Thailand (Deposits and Credits Classified by Districts) · Boundaries: thailand-canonical-admin-names (CC BY 4.0), geoBoundaries/OCHA (CC BY 3.0 IGO)",
-        "built": "Built {d}",
-        "score_explain": "Score 0–100 = average percentile of year-over-year deposit and credit growth across {n} districts (provinces are ranked among {m} provinces).",
-        "lang_other": "ไทย",
-        "million": "million baht",
-        "title_home": "Where Money Moves Thailand: fastest-growing districts by deposits and credit ({p})",
-        "desc_home": "Which Thai districts and provinces are growing bank deposits and credit fastest, year over year. Bank of Thailand data for {p}.",
-        "title_prov": "{name} province: deposits, credit and bank branches ({p}) | Where Money Moves",
-        "desc_prov": "{name}: deposits {dep} and credit {cr} year over year, ranked {rank} nationally. Bank of Thailand data for {p}.",
-        "title_dist": "{name}, {prov}: deposits and credit ({p}) | Where Money Moves",
-        "desc_dist": "{name} district, {prov}: deposits {dep} and credit {cr} year over year, {br} bank branches. Bank of Thailand data for {p}.",
-        "about_body": [
-            ("Where the data comes from", "Every month the Bank of Thailand publishes commercial-bank deposits, credit and branch counts by district. This site downloads that file directly and does not alter the numbers."),
-            ("Coverage", "The BOT only publishes districts with four or more commercial banks. The latest month covers {n} districts. A missing district does not mean there is no money there, only that we have no figure for it. Head-office balances are not assigned to any place."),
-            ("How the score works", "We compare the latest month with the same month a year earlier, using only districts present in both. Deposit and credit growth are converted to percentiles (0–100) and averaged. We use percentiles because Bangkok is so much larger than everywhere else that raw values would leave the rest of the country indistinguishable."),
-            ("Province level", "Province figures add up only the districts present in both months, so they are not full-province totals. Provinces with no covered district have no score."),
-            ("Caveats", "Values are nominal, not inflation-adjusted. District credit can jump when a large borrower or a book of loans moves between branches. We flag credit swings above ±50% in a year. Some BOT sub-cells are masked when a segment has five or fewer debtors, but totals are always published."),
-            ("Next", "Population (Department of Provincial Administration), employment (Social Security Office) and new companies (Department of Business Development) will be added once their sources are verified."),
-        ],
-    },
+LENSES = [  # key, label, what it measures (region), what it measures (Thailand)
+    ("people", "People", "Urban population growth", "Registered population growth"),
+    ("jobs", "Jobs", "Employment growth", "Formal-sector employees (SSO) growth"),
+    ("biz", "Businesses", "New firm registrations growth", "SSO-registered employers growth (proxy)"),
+    ("money", "Money", "Real GDP growth", "Bank deposits and credit growth"),
+]
+LENS = {k: (lab, r, t) for k, lab, r, t in LENSES}
+ICON = {  # 24px stroke icons, drawn for this site
+    "people": '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.4 3-5.4 6-5.4s5.4 2 6 5.4"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.2c2.6.2 4.4 2 5 4.8"/>',
+    "jobs": '<rect x="3" y="7.5" width="18" height="12" rx="2"/><path d="M8.5 7.5V5.8c0-1 .8-1.8 1.8-1.8h3.4c1 0 1.8.8 1.8 1.8v1.7M3 12.5h18"/>',
+    "biz": '<path d="M4 10v10h16V10M3 10l2-6h14l2 6M3 10c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3"/><path d="M10 20v-4.5h4V20"/>',
+    "money": '<ellipse cx="12" cy="6.5" rx="7" ry="2.8"/><path d="M5 6.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5M5 11.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5"/>',
+    "score": '<path d="M4 17l5-5 4 3 7-8"/><path d="M15 7h5v5"/>',
 }
-assert STR["th"].keys() == STR["en"].keys(), set(STR["th"]) ^ set(STR["en"])
+SPIKE = 0.5
 
-TH_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]
-EN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-# '값을 모른다'는 낮은 값과 다른 말이다 — 램프의 가장 옅은 칸과 헷갈리지 않게 빗금으로 칠한다
-HATCH = ('<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
-         '<rect width="4" height="4" class="hb"/><line x1="0" y1="0" x2="0" y2="4" class="hl"/></pattern></defs>')
-SPIKE = 0.5            # 여신 ±50%/년 이상이면 경고 배지
-DIV_BINS = [-0.10, -0.05, -0.02, 0.02, 0.05, 0.10]    # 증가율 발산 램프 경계 (7칸)
-
+# ── formatting ───────────────────────────────────────────────────────────
 
 def esc(s) -> str:
     return html.escape(str(s), quote=True)
 
 
-def period_label(p: str, lang: str) -> str:
-    y, m = (int(x) for x in p.split("-"))
-    return f"{TH_MONTHS[m-1]} {y+543}" if lang == "th" else f"{EN_MONTHS[m-1]} {y}"
+def U(path: str) -> str:
+    return BASE + path
 
 
 def pct(x, digits=1) -> str:
     if x is None:
         return "–"
     v = x * 100
-    if abs(v) >= 1000:
-        return f"{v:+,.0f}%"
-    return f"{v:+.{digits}f}%".replace("-", "−")
+    s = f"{v:+,.0f}%" if abs(v) >= 1000 else f"{v:+.{digits}f}%"
+    return s.replace("-", "−")
 
 
-def money(x, lang: str) -> str:
+def big(x, unit="") -> str:
     if x is None:
         return "–"
-    if lang == "th":
-        return f"{x/1e6:,.0f} ล้านบาท"
+    a = abs(x)
+    for lim, suf in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if a >= lim:
+            return f"{unit}{x/lim:,.1f}{suf}"
+    return f"{unit}{x:,.0f}"
+
+
+def baht(x) -> str:
+    if x is None:
+        return "–"
     if x >= 1e12:
-        return f"฿{x/1e12:.2f}tn"
+        return f"฿{x/1e12:.2f}T"
     if x >= 1e9:
-        return f"฿{x/1e9:.1f}bn"
-    return f"฿{x/1e6:,.0f}m"
+        return f"฿{x/1e9:.1f}B"
+    return f"฿{x/1e6:,.0f}M"
 
 
 def signed_int(x) -> str:
     if x is None:
         return "–"
-    return "0" if x == 0 else f"{x:+d}".replace("-", "−")
+    return "0" if x == 0 else f"{x:+,d}".replace("-", "−")
+
+
+def month_label(p: str) -> str:
+    y, m = (int(v) for v in p.split("-"))
+    return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1] + f" {y}"
 
 
 def slug(s: str) -> str:
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", s.lower())).strip("-")
 
 
-def seq_bin(score) -> str:
-    """점수 0–100 → 1..7 (순차 램프)."""
-    if score is None:
-        return "n"
-    return str(min(7, int(score / (100 / 7)) + 1))
-
-
-def div_bin(g) -> str:
+def tone(g) -> str:
     if g is None:
-        return "n"
-    return str(sum(1 for b in DIV_BINS if g >= b) + 1)
+        return ""
+    return "up" if g > 0.0005 else ("down" if g < -0.0005 else "flat")
 
 
-# ── 지도 ─────────────────────────────────────────────────────────────────
-
-LON0, LAT1, KX = 97.25, 20.55, math.cos(math.radians(13.0))
-S = 40.0
-
-
-def proj(lon, lat):
-    return ((lon - LON0) * KX * S, (LAT1 - lat) * S)
-
-
-def topo_rings():
-    """provinces.topo.json → {tis: [ring(투영 좌표 리스트), ...]}. transform이 없어 arcs는 절대좌표다."""
-    topo = json.load(open(REF / "provinces.topo.json"))
-    arcs = topo["arcs"]
-
-    def arc(i):
-        a = arcs[i] if i >= 0 else list(reversed(arcs[~i]))
-        return [proj(*pt[:2]) for pt in a]
-
-    def ring(idx):
-        pts = []
-        for k, i in enumerate(idx):
-            seg = arc(i)
-            pts.extend(seg if k == 0 else seg[1:])
-        return pts
-
-    out = {}
-    for g in topo["objects"]["data"]["geometries"]:
-        polys = [g["arcs"]] if g["type"] == "Polygon" else g["arcs"]
-        out[g["properties"]["tis1099_code"]] = [ring(r) for poly in polys for r in poly]
+def pct_rank(values: dict) -> dict:
+    xs = sorted((v, k) for k, v in values.items() if v is not None)
+    n = len(xs)
+    out = {k: None for k in values}
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and xs[j + 1][0] == xs[i][0]:
+            j += 1
+        for t in range(i, j + 1):
+            out[xs[t][1]] = 100.0 * ((i + j) / 2) / (n - 1) if n > 1 else 50.0
+        i = j + 1
     return out
 
 
+def bin7(p) -> str:
+    return "n" if p is None else str(min(7, int(p / (100 / 7)) + 1))
+
+
+def growth(a, b):
+    return None if a is None or b in (None, 0) else a / b - 1
+
+
+# ── geometry ─────────────────────────────────────────────────────────────
+
 def simplify(pts, tol):
-    """Douglas–Peucker. 미니맵용."""
     if len(pts) < 3:
         return pts
     (x1, y1), (x2, y2) = pts[0], pts[-1]
@@ -343,7 +153,7 @@ def simplify(pts, tol):
 
 
 def simplify_ring(ring, tol):
-    """닫힌 고리는 첫 점 = 끝 점이라 기준선 길이가 0이 되어 통째로 접힌다. 가장 먼 점에서 둘로 나눠 단순화한다."""
+    """A closed ring starts and ends on the same point, which collapses Douglas–Peucker. Split at the far point."""
     x0, y0 = ring[0]
     far = max(range(len(ring)), key=lambda i: (ring[i][0] - x0) ** 2 + (ring[i][1] - y0) ** 2)
     return simplify(ring[:far + 1], tol)[:-1] + simplify(ring[far:], tol)
@@ -363,234 +173,437 @@ def path_d(rings, tol=None, min_len=0.0):
     return "".join(parts)
 
 
-# ── 차트 ─────────────────────────────────────────────────────────────────
+class Proj:
+    def __init__(self, lon0, lat1, scale, lat_ref):
+        self.lon0, self.lat1, self.s, self.k = lon0, lat1, scale, math.cos(math.radians(lat_ref))
 
-def sparkline(series, idx=1, n=25, w=88, h=24) -> str:
-    vals = [r[idx] for r in series[-n:]]
+    def __call__(self, lon, lat):
+        return ((lon - self.lon0) * self.k * self.s, (self.lat1 - lat) * self.s)
+
+
+TH_PROJ = Proj(97.25, 20.55, 40.0, 13.0)
+SEA_PROJ = Proj(90.0, 29.0, 15.0, 8.0)
+SEA_BOX = (90.0, -12.0, 143.0, 29.0)
+LABEL_AT = {  # lon, lat — placed by hand on open land (or open sea for the small three)
+    "MMR": (96.0, 21.6), "THA": (100.9, 15.6), "LAO": (102.6, 19.4), "VNM": (108.6, 14.2), "KHM": (104.9, 12.8),
+    "MYS": (102.2, 4.6), "IDN": (113.6, -1.2), "PHL": (125.8, 12.4), "SGP": (103.8, 0.2), "BRN": (114.6, 6.0),
+    "TLS": (125.9, -10.1),
+}
+
+
+def thai_rings():
+    topo = json.load(open(REF / "provinces.topo.json"))
+    arcs = topo["arcs"]
+
+    def arc(i):
+        a = arcs[i] if i >= 0 else list(reversed(arcs[~i]))
+        return [TH_PROJ(*pt[:2]) for pt in a]
+
+    out = {}
+    for g in topo["objects"]["data"]["geometries"]:
+        polys = [g["arcs"]] if g["type"] == "Polygon" else g["arcs"]
+        rings = []
+        for poly in polys:
+            for r in poly:
+                pts = []
+                for k, i in enumerate(r):
+                    seg = arc(i)
+                    pts.extend(seg if k == 0 else seg[1:])
+                rings.append(pts)
+        out[g["properties"]["tis1099_code"]] = rings
+    return out
+
+
+# ── charts ───────────────────────────────────────────────────────────────
+
+def spark(vals, w=84, h=22) -> str:
     pts = [(i, v) for i, v in enumerate(vals) if v is not None]
     if len(pts) < 2:
         return ""
     lo, hi = min(v for _, v in pts), max(v for _, v in pts)
     span = (hi - lo) or 1
-    sx = w / (n - 1)
-    d, prev = "", None
-    for i, v in enumerate(vals):
-        if v is None:
-            prev = None
-            continue
-        x, y = i * sx, h - 2 - (v - lo) / span * (h - 4)
-        d += ("L" if prev is not None else "M") + f"{x:.1f},{y:.1f}"
-        prev = i
-    return (f'<svg class="spark" viewBox="0 0 {w} {h}" width="{w}" height="{h}" aria-hidden="true">'
-            f'<path d="{d}"/></svg>')
-
-
-def line_chart(series, idx, title, lang, base_period=None) -> str:
-    W, H, L, R, T, B = 380, 150, 48, 8, 10, 22      # 휴대폰 폭에서 글자가 9px 아래로 줄지 않는 크기
-    vals = [(r[0], r[idx]) for r in series]
-    known = [v for _, v in vals if v is not None]
-    if len(known) < 2:
-        return ""
-    lo, hi = min(known), max(known)
-    pad = (hi - lo) * 0.08 or hi * 0.05 or 1
-    lo, hi = lo - pad, hi + pad
     n = len(vals)
-    xs = lambda i: L + i * (W - L - R) / (n - 1)
-    ys = lambda v: T + (hi - v) / (hi - lo) * (H - T - B)
     d, prev = "", False
-    for i, (_, v) in enumerate(vals):
+    for i, v in enumerate(vals):
         if v is None:
             prev = False
             continue
-        d += ("L" if prev else "M") + f"{xs(i):.1f},{ys(v):.1f}"
+        d += ("L" if prev else "M") + f"{i * w / (n - 1):.1f},{h - 2 - (v - lo) / span * (h - 4):.1f}"
         prev = True
-    scale = 1e6 if idx in (1, 2) else 1
-    if idx == 3:            # 지점 수는 정수 눈금만 — 반올림한 같은 숫자가 여러 번 찍히지 않게
-        lv = list(range(math.ceil(lo), math.floor(hi) + 1))
-        levels = lv[:: max(1, math.ceil(len(lv) / 3))] or [round((lo + hi) / 2)]
-    else:
-        levels = [lo + (hi - lo) * (k + 0.5) / 3 for k in range(3)]
-    grid = ""
-    for v in levels:
-        grid += (f'<line x1="{L}" x2="{W-R}" y1="{ys(v):.1f}" y2="{ys(v):.1f}"/>'
-                 f'<text x="{L-5}" y="{ys(v)+4:.1f}" text-anchor="end">{v/scale:,.0f}</text>')
-    ticks = ""
-    for i, (p, _) in enumerate(vals):
-        if p.endswith("-01"):
-            y = int(p[:4]) + (543 if lang == "th" else 0)
-            ticks += f'<text x="{xs(i):.1f}" y="{H-6}" text-anchor="middle">{y}</text>'
-    base = ""
-    if base_period:
-        bi = next((i for i, (p, _) in enumerate(vals) if p == base_period), None)
+    return f'<svg class="spark" viewBox="0 0 {w} {h}" width="{w}" height="{h}" aria-hidden="true"><path d="{d}"/></svg>'
+
+
+def compact(x, unit="", d=1):
+    a = abs(x)
+    for lim, suf in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if a >= lim:
+            return f"{unit}{x/lim:,.{d}f}{suf}"
+    return f"{unit}{x:,.0f}"
+
+
+def chart(points, title, unit="", x_label=lambda p: p, every=None, base=None, kind="line") -> str:
+    """points: [(x_key, value|None)]. 'line' for monthly series, 'dots' for annual levels.
+    Never bars: these are levels that move a few percent, and a bar has to start at zero to be honest."""
+    W, H, L, R, T, B = 420, 168, 52, 10, 12, 24
+    known = [v for _, v in points if v is not None]
+    if len(known) < 2:
+        return ""
+    lo, hi = min(known), max(known)
+    pad = (hi - lo) * 0.12 or abs(hi) * 0.05 or 1
+    lo, hi = lo - pad, hi + pad
+    n = len(points)
+    xs = lambda i: L + 6 + i * (W - L - R - 12) / (n - 1)
+    ys = lambda v: T + (hi - v) / (hi - lo) * (H - T - B)
+    levels = [lo + (hi - lo) * (k + 0.5) / 3 for k in range(3)]
+    for d in (1, 2, 3):          # add decimals until the three axis labels differ
+        labels = [compact(v, unit, d) for v in levels]
+        if len(set(labels)) == 3:
+            break
+    grid = "".join(f'<line x1="{L}" x2="{W-R}" y1="{ys(v):.1f}" y2="{ys(v):.1f}"/><text x="{L-6}" y="{ys(v)+4:.1f}" text-anchor="end">{esc(lab)}</text>'
+                   for v, lab in zip(levels, labels))
+    every = every or max(1, n // 5)
+    ticks = "".join(f'<text x="{xs(i):.1f}" y="{H-6}" text-anchor="middle">{esc(x_label(p))}</text>'
+                    for i, (p, _) in enumerate(points) if (i % every == 0 or i == n - 1))
+    d, prev = "", False
+    if True:
+        for i, (_, v) in enumerate(points):
+            if v is None:
+                prev = False
+                continue
+            d += ("L" if prev else "M") + f"{xs(i):.1f},{ys(v):.1f}"
+            prev = True
+        last = next((i, v) for i, (_, v) in reversed(list(enumerate(points))) if v is not None)
+        marks = f'<path class="ln" pathLength="1" d="{d}"/>'
+        if kind == "dots":
+            marks += "".join(f'<circle class="pt" cx="{xs(i):.1f}" cy="{ys(v):.1f}" r="3"/>' for i, (_, v) in enumerate(points) if v is not None)
+        marks += f'<circle cx="{xs(last[0]):.1f}" cy="{ys(last[1]):.1f}" r="4"/>'
+    b = ""
+    if base is not None:
+        bi = next((i for i, (p, _) in enumerate(points) if p == base), None)
         if bi is not None:
-            base = f'<line class="base" x1="{xs(bi):.1f}" x2="{xs(bi):.1f}" y1="{T}" y2="{H-B}"/>'
-    last = next(((i, v) for i, (_, v) in reversed(list(enumerate(vals))) if v is not None))
-    dot = f'<circle cx="{xs(last[0]):.1f}" cy="{ys(last[1]):.1f}" r="3.5"/>'
-    return (f'<figure class="chart"><figcaption>{esc(title)}</figcaption>'
-            f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(title)}">'
-            f'<g class="grid">{grid}</g><g class="ticks">{ticks}</g>{base}'
-            f'<path class="line l{idx}" d="{d}"/>{dot}</svg></figure>')
+            b = f'<line class="base" x1="{xs(bi):.1f}" x2="{xs(bi):.1f}" y1="{T}" y2="{H-B}"/>'
+    return (f'<figure class="chart {kind}"><figcaption>{esc(title)}</figcaption>'
+            f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(title)}"><g class="grid">{grid}</g>'
+            f'<g class="ticks">{ticks}</g>{b}<g class="marks">{marks}</g></svg></figure>')
 
 
-# ── 페이지 껍데기 ────────────────────────────────────────────────────────
+# ── data model ───────────────────────────────────────────────────────────
 
-def page(lang, path, title, desc, body, meta, extra_head="", crumbs=None) -> str:
-    t = STR[lang]
-    other = "en" if lang == "th" else "th"
-    alt_path = "/" + other + path[3:]
+def load():
+    meta = json.load(open(DATA / "meta.json"))
+    D = json.load(open(DATA / "districts.json"))
+    P = json.load(open(DATA / "provinces.json"))
+    sso = json.load(open(DATA / "th_sso.json"))
+    dopa = json.load(open(DATA / "th_dopa.json"))
+    wb = json.load(open(DATA / "sea_wb.json"))
+    ctx = json.load(open(REF / "nesdc_context.json")) if (REF / "nesdc_context.json").exists() else {"provinces": {}, "year": None}
+    geo = json.load(open(REF / "sea.geo.json"))
+    return meta, D, P, sso, dopa, wb, ctx, geo
+
+
+def region_model(wb):
+    S, C = wb["series"], wb["countries"]
+
+    def ser(ind, iso):
+        return {int(y): v for y, v in S[ind][iso].items()}
+
+    def yoy(ind, iso):
+        s = ser(ind, iso)
+        ys = sorted(y for y in s if y - 1 in s)
+        if not ys:
+            return None, None
+        y = ys[-1]
+        return growth(s[y], s[y - 1]), y
+
+    def last(ind, iso):
+        s = ser(ind, iso)
+        return (s[max(s)], max(s)) if s else (None, None)
+
+    R = {}
+    for iso, c in C.items():
+        r = {"iso": iso, "name": c["name"], "native": c["native"], "slug": c["slug"]}
+        for lens, ind in (("people", "SP.URB.TOTL"), ("jobs", "EMPLOYED"), ("biz", "IC.BUS.NREG"), ("money", "NY.GDP.MKTP.KD")):
+            r[lens], r[lens + "_year"] = yoy(ind, iso)
+        r["pop"], r["pop_year"] = last("SP.POP.TOTL", iso)
+        urb, _ = last("SP.URB.TOTL", iso)
+        r["urban_share"] = urb / r["pop"] if urb and r["pop"] else None
+        r["netmig"], r["netmig_year"] = last("SM.POP.NETM", iso)
+        r["unemp"], r["unemp_year"] = last("SL.UEM.TOTL.ZS", iso)
+        r["employed"], _ = last("EMPLOYED", iso)
+        r["new_firms"], r["new_firms_year"] = last("IC.BUS.NREG", iso)
+        r["firm_density"], _ = last("IC.BUS.NDNS.ZS", iso)
+        r["gdp_usd"], r["gdp_year"] = last("NY.GDP.MKTP.CD", iso)
+        r["fdi"], r["fdi_year"] = last("BX.KLT.DINV.CD.WD", iso)
+        r["remit"], r["remit_year"] = last("BX.TRF.PWKR.CD.DT", iso)
+        r["series"] = {k: sorted(ser(ind, iso).items()) for k, ind in
+                       (("people", "SP.URB.TOTL"), ("jobs", "EMPLOYED"), ("biz", "IC.BUS.NREG"),
+                        ("money", "NY.GDP.MKTP.KD"), ("fdi", "BX.KLT.DINV.CD.WD"))}
+        R[iso] = r
+    score_lenses(R, [k for k, *_ in LENSES])
+    return R
+
+
+def score_lenses(units: dict, keys, pre_pct=None):
+    """Per-lens percentile within the layer, then the mean of available lenses = Momentum Score."""
+    pre_pct = pre_pct or {}
+    for k in keys:
+        pr = pre_pct.get(k) or pct_rank({u: units[u][k] for u in units})
+        for u in units:
+            units[u][k + "_pct"] = pr[u]
+    for u, r in units.items():
+        parts = [r[k + "_pct"] for k in keys if r.get(k + "_pct") is not None]
+        r["score"] = sum(parts) / len(parts) if parts else None
+        r["n_lenses"] = len(parts)
+    ranked = sorted((r for r in units.values() if r["score"] is not None), key=lambda r: -r["score"])
+    for i, r in enumerate(ranked, 1):
+        r["rank"] = i
+    for k in keys:
+        rk = sorted((r for r in units.values() if r.get(k) is not None), key=lambda r: -r[k])
+        for i, r in enumerate(rk, 1):
+            r[k + "_rank"] = i
+
+
+def thailand_model(P, D, sso, dopa, ctx):
+    sy, dy = sso["years"], dopa["years"]
+    T = {}
+    for p in P:
+        tis = p["id"]
+        s, d = sso["provinces"][tis], dopa["provinces"][tis]
+        pop = {int(y): v["population"] for y, v in d.items()}
+        hh = {int(y): v["households"] for y, v in d.items()}
+        ins = {int(y): v["insured"] for y, v in s.items()}
+        ent = {int(y): v["enterprises"] for y, v in s.items()}
+        r = {
+            "id": tis, "name": p["name_en"], "native": p["name_th"], "slug": slug(p["name_en"]),
+            "region": p["region"],
+            "people": growth(pop[dy[-1]], pop[dy[-2]]), "people_5y": growth(pop[dy[-1]], pop[dy[0]]),
+            "pop": pop[dy[-1]], "households": hh[dy[-1]], "hh_growth": growth(hh[dy[-1]], hh[dy[-2]]),
+            "jobs": growth(ins[sy[-1]], ins[sy[-2]]), "jobs_3y": growth(ins[sy[-1]], ins[sy[0]]), "insured": ins[sy[-1]],
+            "biz": growth(ent[sy[-1]], ent[sy[-2]]), "biz_3y": growth(ent[sy[-1]], ent[sy[0]]), "enterprises": ent[sy[-1]],
+            "firm_size": ins[sy[-1]] / ent[sy[-1]] if ent[sy[-1]] else None,
+            "money": p["dep_yoy"], "credit": p["cr_yoy"], "money_score": p["score"],
+            "deposits": p["deposits"], "branches": p["branches"], "br_change": p["br_change"],
+            "n_covered": p["n_covered"], "n_districts_total": p["n_districts_total"],
+            "pop_series": sorted(pop.items()), "ins_series": sorted(ins.items()), "ent_series": sorted(ent.items()),
+            "gpp_pc": (ctx["provinces"].get(tis) or {}).get("gpp_per_capita"),
+        }
+        T[tis] = r
+    # money lens percentile = the BOT Money Momentum score (deposits + credit), already a percentile
+    score_lenses(T, ["people", "jobs", "biz", "money"], pre_pct={"money": {k: v["money_score"] for k, v in T.items()}})
+    for d in D:
+        d["slug"] = None
+    by_prov = {}
+    for d in D:
+        by_prov.setdefault(d["prov"], []).append(d)
+    for ds in by_prov.values():
+        seen = set()
+        for d in sorted(ds, key=lambda x: x["id"]):
+            s = slug(d["name_en"])
+            if s in seen:
+                s = f"{s}-{d['id']}"
+            seen.add(s)
+            d["slug"] = s
+        for i, d in enumerate(sorted([x for x in ds if x.get("score") is not None], key=lambda x: -x["score"]), 1):
+            d["prov_rank"] = i
+    return T, by_prov
+
+
+# ── page shell ───────────────────────────────────────────────────────────
+
+def icon(k, cls="ic"):
+    return f'<svg class="{cls}" viewBox="0 0 24 24" aria-hidden="true">{ICON[k]}</svg>'
+
+
+def native(s, lang="th"):
+    return f'<span class="native" lang="{lang}">{esc(s)}</span>' if s else ""
+
+
+# Khmer, Lao and Burmese appear only in three country names: load just those glyphs
+NATIVE_GLYPHS = urllib.parse.quote("".join(sorted(set("កម្ពុជាລາວမြန်မာ"))))
+NATIVE_LANG = {"THA": "th", "KHM": "km", "LAO": "lo", "MMR": "my", "VNM": "vi", "IDN": "id", "MYS": "ms",
+               "PHL": "fil", "SGP": "ms", "BRN": "ms", "TLS": "pt"}
+
+
+def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") -> str:
     canonical = SITE_URL + path
-    crumb_ld = ""
+    ld = ""
     if crumbs:
-        items = [{"@type": "ListItem", "position": i + 1, "name": n, "item": SITE_URL + u}
-                 for i, (n, u) in enumerate(crumbs)]
-        crumb_ld = ('<script type="application/ld+json">'
-                    + json.dumps({"@context": "https://schema.org", "@type": "BreadcrumbList",
-                                  "itemListElement": items}, ensure_ascii=False) + "</script>")
-    nav_crumbs = ""
-    if crumbs:
-        nav_crumbs = ('<nav class="crumbs" aria-label="breadcrumb">'
-                      + " › ".join(f'<a href="{u}">{esc(n)}</a>' for n, u in crumbs[:-1])
-                      + f' › <span aria-current="page">{esc(crumbs[-1][0])}</span></nav>')
+        ld = ('<script type="application/ld+json">' + json.dumps({
+            "@context": "https://schema.org", "@type": "BreadcrumbList",
+            "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": SITE_URL + U(u)}
+                                for i, (n, u) in enumerate(crumbs)]}, ensure_ascii=False) + "</script>")
+    crumb_nav = ""
+    if crumbs and len(crumbs) > 1:
+        crumb_nav = ('<nav class="crumbs" aria-label="Breadcrumb"><ol>'
+                     + "".join(f'<li><a href="{U(u)}">{esc(n)}</a></li>' for n, u in crumbs[:-1])
+                     + f'<li aria-current="page">{esc(crumbs[-1][0])}</li></ol></nav>')
+    actions = ""
+    if watch:
+        actions = (f'<div class="actions"><button class="btn ghost" data-watch=\'{esc(json.dumps(watch))}\' aria-pressed="false">'
+                   f'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>'
+                   f'<span>Watch</span></button>'
+                   f'<button class="btn ghost" data-share><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8M5 12.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-6.5"/></svg><span>Share</span></button></div>')
+    v = meta["build_id"]
     return f"""<!doctype html>
-<html lang="{lang}">
+<html lang="en" data-base="{BASE}" data-build="{v}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(desc)}">
 <link rel="canonical" href="{canonical}">
-<link rel="alternate" hreflang="{lang}" href="{canonical}">
-<link rel="alternate" hreflang="{other}" href="{SITE_URL}{alt_path}">
-<link rel="alternate" hreflang="x-default" href="{SITE_URL}/th{path[3:]}">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Where Money Moves">
 <meta property="og:title" content="{esc(title)}">
 <meta property="og:description" content="{esc(desc)}">
 <meta property="og:url" content="{canonical}">
-<meta property="og:image" content="{SITE_URL}/assets/og-{lang}.png">
-<meta property="og:locale" content="{'th_TH' if lang == 'th' else 'en_US'}">
+<meta property="og:image" content="{SITE_URL}{U('/assets/og.png')}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#0b1f1a" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f6f8f6" media="(prefers-color-scheme: light)">
-<link rel="manifest" href="/manifest-{lang}.webmanifest">
-<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<meta name="theme-color" content="#f6f7f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1720" media="(prefers-color-scheme: dark)">
+<script>try{{var t=localStorage.getItem("wmm-theme");if(t)document.documentElement.dataset.theme=t}}catch(e){{}}</script>
+<link rel="manifest" href="{U('/manifest.webmanifest')}">
+<link rel="icon" href="{U('/assets/icon.svg')}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{U('/assets/icon-192.png')}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="/assets/app.css?v={meta['build_id']}">
-{extra_head}{crumb_ld}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..700&family=Noto+Sans+Thai:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer&family=Noto+Sans+Lao&family=Noto+Sans+Myanmar&text={NATIVE_GLYPHS}&display=swap">
+<link rel="stylesheet" href="{U('/assets/app.css')}?v={v}">
+<script type="speculationrules">{{"prerender":[{{"where":{{"href_matches":"{BASE}/*"}},"eagerness":"moderate"}}]}}</script>
+{extra_head}{ld}
 </head>
 <body>
+<div class="progress" aria-hidden="true"></div>
+<a class="skip" href="#main">Skip to content</a>
 <header class="top">
-  <a class="brand" href="/{lang}/"><img class="mark" src="/assets/icon.svg" alt="" width="28" height="28"><span><b>{esc(t['brand'])}</b><small>{esc(t['brand_sub'])}</small></span></a>
-  <div class="search" role="search">
-    <input id="q" type="search" placeholder="{esc(t['search'])}" aria-label="{esc(t['search'])}" autocomplete="off" data-none="{esc(t['search_none'])}">
-    <ul id="qr" role="listbox" hidden></ul>
-  </div>
-  <nav class="links">
-    <a href="/{lang}/rankings/districts/">{esc(t['rankings'])}</a>
-    <a href="{alt_path}" hreflang="{other}" lang="{other}">{esc(t['lang_other'])}</a>
+  <a class="brand" href="{U('/')}"><img src="{U('/assets/icon.svg')}" alt="" width="26" height="26"><span>Where Money Moves</span></a>
+  <nav class="nav" aria-label="Main">
+    <a href="{U('/thailand/')}">Thailand</a>
+    <a href="{U('/rankings/')}">Rankings</a>
+    <a href="{U('/compare/')}" class="cmp">Compare<span class="count" hidden></span></a>
+    <a href="{U('/about/')}">Method</a>
   </nav>
+  <button class="search-btn" data-cmdk aria-label="Search countries, provinces and districts"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span>Search</span><kbd>/</kbd></button>
+  <button class="theme-btn" data-theme-toggle aria-label="Switch colour theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></button>
 </header>
-<main>
-{nav_crumbs}
+<main id="main">
+{f'<div class="pagebar">{crumb_nav}{actions}</div>' if crumb_nav or actions else ""}
 {body}
 </main>
-<footer>
-  <p>{esc(t['src_line'])}</p>
-  <p>{esc(t['nominal'])} · <a href="/{lang}/about/">{esc(t['about'])}</a> · {esc(t['built'].format(d=meta['built']))}</p>
-  <button id="install" class="chip" hidden>{esc(t['install'])}</button>
+<footer class="foot">
+  <div>
+    <p><b>Where Money Moves</b> tracks where people, jobs, businesses and money are moving across Southeast Asia, from public data only.</p>
+    <p>Sources: World Bank WDI (CC BY 4.0). Thailand: Bank of Thailand district deposits and credit, Social Security Office, Department of Provincial Administration (Open Data Common). Boundaries: Natural Earth, geoBoundaries/OCHA (CC BY 3.0 IGO), thailand-canonical-admin-names (CC BY 4.0).</p>
+  </div>
+  <p class="small">Built {meta['built']}. <a href="{U('/about/')}">How the numbers work</a>. <a href="https://github.com/minsungkim-source/where-money-moves">Source code</a>.</p>
 </footer>
-<script src="/assets/app.js?v={meta['build_id']}" defer></script>
+<dialog id="cmdk" aria-label="Search">
+  <div class="cmdk-box"><input type="search" placeholder="Country, province or district" autocomplete="off" aria-label="Search"><ul role="listbox"></ul>
+  <p class="hint"><kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>Enter</kbd> to open, <kbd>Esc</kbd> to close</p></div>
+</dialog>
+<div class="toasts" role="status" aria-live="polite"></div>
+<div class="tip" role="tooltip" hidden></div>
+<script src="{U('/assets/app.js')}?v={v}" defer></script>
 </body>
 </html>
 """
 
 
-def stat(label, value, cls="", sub=""):
-    return (f'<div class="stat"><span class="k">{esc(label)}</span>'
-            f'<span class="v num {cls}">{esc(value)}</span>{f"<span class=s>{esc(sub)}</span>" if sub else ""}</div>')
+# ── components ───────────────────────────────────────────────────────────
+
+def lens_tabs(include_score=True, default="score", label="Lens"):
+    items = ([("score", "Momentum")] if include_score else []) + [(k, lab) for k, lab, *_ in LENSES]
+    return (f'<div class="lenses" role="tablist" aria-label="{esc(label)}">'
+            + "".join(f'<button role="tab" data-lens="{k}" aria-selected="{str(k == default).lower()}">{icon(k)}<span>{esc(lab)}</span></button>'
+                      for k, lab in items)
+            + '<span class="lens-ink" aria-hidden="true"></span></div>')
 
 
-def growth_cls(g):
-    if g is None:
-        return ""
-    return "up" if g > 0.005 else ("down" if g < -0.005 else "flat")
+def legend(layer):
+    sw = "".join(f'<i class="s{i}"></i>' for i in range(1, 8))
+    return (f'<div class="legend"><span>Slower</span><span class="ramp">{sw}</span><span>Faster</span>'
+            f'<span class="nd"><i></i>No data</span><span class="note">Colour is rank within {esc(layer)}</span></div>')
 
 
-def score_badge(score, lang, size=""):
-    t = STR[lang]
-    if score is None:
-        return f'<span class="score {size} none">{esc(t["no_data"])}</span>'
-    return f'<span class="score {size} b{seq_bin(score)}" title="{esc(t["score"])}"><b class="num">{score:.0f}</b><small>/100</small></span>'
+def lens_attrs(r, keys):
+    a = [f'data-b-score="{bin7(r.get("score"))}"']
+    for k in keys:
+        a.append(f'data-b-{k}="{bin7(r.get(k + "_pct"))}"')
+    return " ".join(a)
 
 
-# ── 빌드 ─────────────────────────────────────────────────────────────────
+def value_cell(g, cls=""):
+    return f'<td class="num {tone(g)} {cls}" data-v="{"" if g is None else round(g, 6)}">{pct(g)}</td>'
+
+
+def score_pill(s):
+    if s is None:
+        return '<span class="pill none">No score</span>'
+    return f'<span class="pill b{bin7(s)}"><b>{s:.0f}</b></span>'
+
+
+def stat(label, value, sub="", cls="", count=True):
+    data = f' data-count="{esc(value)}"' if count and value not in ("–",) else ""
+    return (f'<div class="stat"><span class="k">{esc(label)}</span><span class="v {cls}"{data}>{esc(value)}</span>'
+            + (f'<span class="s">{esc(sub)}</span>' if sub else "") + "</div>")
+
+
+def lens_panel(k, headline, unit_label, rank_txt, rows, chart_html="", note=""):
+    lab, *_ = LENS[k]
+    return (f'<section class="lens-panel reveal" data-k="{k}"><header>{icon(k)}<h2>{esc(lab)}</h2>'
+            f'<span class="rank">{esc(rank_txt)}</span></header>'
+            f'<p class="headline"><span class="v {tone_from(headline)}" data-count="{esc(headline)}">{esc(headline)}</span>'
+            f'<span class="u">{esc(unit_label)}</span></p>'
+            + ("<dl>" + "".join(f"<div><dt>{esc(a)}</dt><dd>{esc(b)}</dd></div>" for a, b in rows) + "</dl>" if rows else "")
+            + chart_html + (f'<p class="note">{esc(note)}</p>' if note else "") + "</section>")
+
+
+def tone_from(s: str) -> str:
+    return "up" if s.startswith("+") else ("down" if s.startswith("−") else "")
+
+
+# ── build ────────────────────────────────────────────────────────────────
 
 def main():
-    meta = json.load(open(DATA / "meta.json"))
-    D = json.load(open(DATA / "districts.json"))
-    P = json.load(open(DATA / "provinces.json"))
+    meta, D, P, sso, dopa, wb, ctx, geo = load()
     meta["build_id"] = meta["generated_at"][:19].replace(":", "").replace("-", "")
     meta["built"] = meta["generated_at"][:10]
     latest, y1 = meta["latest"], meta["yoy_base"]
-
-    ctx_src = json.load(open(CONTEXT)) if CONTEXT.exists() else {"provinces": {}, "year": None}
-    figi = ctx_src["provinces"]
-
+    R = region_model(wb)
+    T, by_prov = thailand_model(P, D, sso, dopa, ctx)
     Pm = {p["id"]: p for p in P}
-    for p in P:
-        p["slug"] = slug(p["name_en"])
-    # 군 slug: 주 안에서 유일하게
-    by_prov: dict[str, list] = {}
-    for d in D:
-        by_prov.setdefault(d["prov"], []).append(d)
-    for ds in by_prov.values():
-        seen = {}
-        for d in sorted(ds, key=lambda x: x["id"]):
-            s = slug(d["name_en"])
-            if s in seen:
-                s = f"{s}-{d['id']}"
-            seen[s] = 1
-            d["slug"] = s
+    lens_keys = [k for k, *_ in LENSES]
+    asof = {"people": f"Dec {dopa['years'][-1]}", "jobs": f"Dec {sso['years'][-1]}",
+            "biz": f"Dec {sso['years'][-1]}", "money": month_label(latest)}
+    base_of = {"people": f"Dec {dopa['years'][-2]}", "jobs": f"Dec {sso['years'][-2]}",
+               "biz": f"Dec {sso['years'][-2]}", "money": month_label(y1)}
 
-    def d_url(lang, d):
-        return f"/{lang}/district/{Pm[d['prov']]['slug']}/{d['slug']}/"
+    def p_url(t):
+        return f"/thailand/{t['slug']}/"
 
-    def p_url(lang, p):
-        return f"/{lang}/province/{p['slug']}/"
+    def d_url(d):
+        return f"/thailand/{T[d['prov']]['slug']}/{d['slug']}/"
 
-    def dname(d, lang):
-        return d["name_th"] if lang == "th" else d["name_en"]
-
-    def pname(p, lang):
-        return p["name_th"] if lang == "th" else p["name_en"]
-
-    def unit(d, lang):
-        return STR[lang]["khet" if d["prov"] == "10" else "district"]
-
-    scored_d = sorted([d for d in D if d.get("score") is not None], key=lambda d: d["rank"])
-    scored_p = sorted([p for p in P if p.get("score") is not None], key=lambda p: p["rank"])
-    nD, nP = len(scored_d), len(scored_p)
-    # 주 안 순위
-    for ds in by_prov.values():
-        for i, d in enumerate(sorted([x for x in ds if x.get("score") is not None], key=lambda x: -x["score"]), 1):
-            d["prov_rank"] = i
-
-    rings = topo_rings()
-    W = max(x for rs in rings.values() for r in rs for x, _ in r) + 4
-    H = max(y for rs in rings.values() for r in rs for _, y in r) + 4
-    mini_d = {k: path_d(v, tol=1.2, min_len=1.5) for k, v in rings.items()}
-    full_d = {k: path_d(v) for k, v in rings.items()}
+    def c_url(r):
+        return f"/country/{r['slug']}/"
 
     if OUT.exists():
         shutil.rmtree(OUT)
     (OUT / "assets").mkdir(parents=True)
     for f in STATIC.iterdir():
-        if f.is_file():
+        if f.is_file() and f.name not in ("sw.js", "app.css"):
             shutil.copy(f, OUT / "assets" / f.name)
 
-    pages: list[str] = []
+    # map colour rules are generated: one per lens × bin
+    rules = []
+    for lens in ["score"] + lens_keys:
+        for b in range(1, 8):
+            rules.append(f'.map[data-lens="{lens}"] [data-b-{lens}="{b}"]{{fill:var(--s{b})}}')
+        rules.append(f'.map[data-lens="{lens}"] [data-b-{lens}="n"]{{fill:url(#hatch)}}')
+    (OUT / "assets" / "app.css").write_text((STATIC / "app.css").read_text() + "\n/* generated */\n" + "\n".join(rules) + "\n")
+
+    pages = []
 
     def write(path, content):
         fp = OUT / path.lstrip("/") / "index.html"
@@ -598,369 +611,504 @@ def main():
         fp.write_text(content, encoding="utf-8")
         pages.append(path)
 
-    def district_row(d, lang, show_prov=True, rank_key="rank"):
-        t = STR[lang]
-        p = Pm[d["prov"]]
-        flag = ' <span class="flag" title="{}">⚠</span>'.format(esc(t["spike"])) if d["cr_yoy"] is not None and abs(d["cr_yoy"]) > SPIKE else ""
-        return (f'<tr><td class="num rk">{d.get(rank_key) or "–"}</td>'
-                f'<th scope="row"><a href="{d_url(lang, d)}">{esc(dname(d, lang))}</a>'
-                + (f'<small>{esc(pname(p, lang))}</small>' if show_prov else "")
-                + f'</th><td>{score_badge(d.get("score"), lang, "sm")}</td>'
-                f'<td class="num {growth_cls(d["dep_yoy"])}" data-v="{d["dep_yoy"] if d["dep_yoy"] is not None else ""}">{pct(d["dep_yoy"])}</td>'
-                f'<td class="num {growth_cls(d["cr_yoy"])}" data-v="{d["cr_yoy"] if d["cr_yoy"] is not None else ""}">{pct(d["cr_yoy"])}{flag}</td>'
-                f'<td class="num" data-v="{d["br_change"] if d["br_change"] is not None else ""}">{signed_int(d["br_change"])}</td>'
-                f'<td class="sp">{sparkline(d["series"])}</td></tr>')
+    HATCH = ('<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+             '<rect width="5" height="5" class="hb"/><line x1="0" y1="0" x2="0" y2="5" class="hl"/></pattern></defs>')
 
-    def district_table(rows, lang, show_prov=True, rank_key="rank", sortable=False, caption=""):
-        t = STR[lang]
-        sort_attr = ' data-sortable' if sortable else ""
-        head = (f'<thead><tr><th scope="col" class="num">#</th><th scope="col">{esc(t["district"])}</th>'
-                f'<th scope="col">{esc(t["score_short"])}</th>'
-                f'<th scope="col" class="num"><button data-k="3">{esc(t["deposits"])}</button></th>'
-                f'<th scope="col" class="num"><button data-k="4">{esc(t["credits"])}</button></th>'
-                f'<th scope="col" class="num"><button data-k="5">{esc(t["branches"])}</button></th>'
-                f'<th scope="col" class="sp"><span class="sr-only">{esc(t["trend"])}</span></th></tr></thead>')
-        cap = f"<caption>{esc(caption)}</caption>" if caption else ""
-        return (f'<div class="tablewrap"><table class="rank"{sort_attr}>{cap}{head}<tbody>'
-                + "".join(district_row(d, lang, show_prov, rank_key) for d in rows)
-                + "</tbody></table></div>")
-
-    def map_svg(lang, highlight=None, mini=False):
-        t = STR[lang]
-        shapes = []
-        for p in P:
-            k = p["id"]
-            if k not in rings:
+    # ── region map
+    def sea_map(highlight=None, interactive=True):
+        feats = geo["features"]
+        W, H = SEA_PROJ(SEA_BOX[2], SEA_BOX[1])
+        grat = ""
+        for lon in range(90, 145, 5):
+            x, _ = SEA_PROJ(lon, 0)
+            grat += f'<line x1="{x:.1f}" y1="0" x2="{x:.1f}" y2="{H:.1f}"/>'
+        for lat in range(-10, 30, 5):
+            _, y = SEA_PROJ(0, lat)
+            grat += f'<line x1="0" y1="{y:.1f}" x2="{W:.1f}" y2="{y:.1f}"/>'
+        ticks = "".join(f'<text x="{SEA_PROJ(lon, 0)[0]+3:.1f}" y="{H-6:.1f}">{lon}°E</text>' for lon in range(95, 145, 10))
+        ticks += "".join(f'<text x="4" y="{SEA_PROJ(0, lat)[1]-4:.1f}">{abs(lat)}°{"N" if lat >= 0 else "S"}</text>'
+                         for lat in range(-10, 30, 10))
+        ctx_paths, shapes, labels = "", "", ""
+        for f in feats:
+            rings = [[SEA_PROJ(x, y) for x, y in r] for r in f["rings"]]
+            d = path_d(rings)
+            if not f["sea"]:
+                ctx_paths += f'<path d="{d}"/>'
                 continue
-            d_attr = (mini_d if mini else full_d)[k]
-            cls = "on" if highlight == k else ""
+            r = R[f["iso3"]]
+            # label at the bbox centre of the largest ring
+            big_ring = max(rings, key=lambda rg: (max(p[0] for p in rg) - min(p[0] for p in rg)) * (max(p[1] for p in rg) - min(p[1] for p in rg)))
+            cx = (max(p[0] for p in big_ring) + min(p[0] for p in big_ring)) / 2
+            cy = (max(p[1] for p in big_ring) + min(p[1] for p in big_ring)) / 2
+            tiny = f["iso3"] in ("SGP", "BRN", "TLS")
+            attrs = lens_attrs(r, lens_keys)
+            dot = f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="5" class="dot" {attrs}/>' if tiny else ""
+            tip = {"n": r["name"], "a": r["native"], "s": None if r["score"] is None else round(r["score"]),
+                   **{k: pct(r[k]) for k in lens_keys}, **{k + "y": r[k + "_year"] for k in lens_keys}}
+            cls = ' class="on"' if highlight == f["iso3"] else ""
+            body = f'<path d="{d}" {attrs}/>{dot}'
+            if interactive:
+                shapes += (f'<a href="{U(c_url(r))}" data-tip=\'{esc(json.dumps(tip, ensure_ascii=False))}\' aria-label="{esc(r["name"])}, momentum {tip["s"]}"{cls}>{body}</a>')
+            else:
+                shapes += f'<g{cls}>{body}</g>'
+            lx, ly = SEA_PROJ(*LABEL_AT[f["iso3"]]) if f["iso3"] in LABEL_AT else (cx, cy)
+            labels += f'<text x="{lx:.1f}" y="{ly + 4:.1f}" text-anchor="middle">{esc(r["name"])}</text>'
+        return (f'<svg class="map sea" data-lens="score" viewBox="0 0 {W:.0f} {H:.0f}" role="group" aria-label="Map of Southeast Asia">{HATCH}'
+                f'<rect class="sea-bg" width="{W:.0f}" height="{H:.0f}"/><g class="grat">{grat}</g><g class="ctx">{ctx_paths}</g>'
+                f'<g class="units">{shapes}</g><g class="labels" aria-hidden="true">{labels}</g><g class="coords" aria-hidden="true">{ticks}</g></svg>')
+
+    th_rings = thai_rings()
+    th_full = {k: path_d(v) for k, v in th_rings.items()}
+    th_mini = {k: path_d(v, tol=1.2, min_len=1.5) for k, v in th_rings.items()}
+    TW = max(x for rs in th_rings.values() for r in rs for x, _ in r) + 4
+    TH = max(y for rs in th_rings.values() for r in rs for _, y in r) + 4
+
+    def th_map(highlight=None, mini=False):
+        shapes = ""
+        for tis, t in T.items():
+            if tis not in th_full:
+                continue
             if mini:
-                shapes.append(f'<path d="{d_attr}" class="{cls}"/>')
+                shapes += f'<path d="{th_mini[tis]}"{" class=on" if highlight == tis else ""}/>'
                 continue
-            label = (f'{pname(p, lang)} · {t["score_short"]} {p["score"]:.0f}' if p["score"] is not None
-                     else f'{pname(p, lang)} · {t["no_data"]}')
-            shapes.append(
-                f'<a href="{p_url(lang, p)}" aria-label="{esc(label)}" data-id="{k}" '
-                f'data-name="{esc(pname(p, lang))}" data-score="{"" if p["score"] is None else round(p["score"])}" '
-                f'data-dep="{esc(pct(p["dep_yoy"]))}" data-cr="{esc(pct(p["cr_yoy"]))}" '
-                f'data-rank="{p.get("rank") or ""}">'
-                f'<path d="{d_attr}" data-s="{seq_bin(p["score"])}" data-d="{div_bin(p["dep_yoy"])}" '
-                f'data-c="{div_bin(p["cr_yoy"])}"/></a>')
+            tip = {"n": t["name"], "a": t["native"], "s": None if t["score"] is None else round(t["score"]),
+                   "people": pct(t["people"]), "jobs": pct(t["jobs"]), "biz": pct(t["biz"]), "money": pct(t["money"])}
+            shapes += (f'<a href="{U(p_url(t))}" data-tip=\'{esc(json.dumps(tip, ensure_ascii=False))}\' aria-label="{esc(t["name"])}, momentum {tip["s"]}">'
+                       f'<path d="{th_full[tis]}" {lens_attrs(t, lens_keys)}/></a>')
         dots = ""
         if mini and highlight:
             for d in by_prov.get(highlight, []):
                 if d["in_latest"]:
-                    x, y = proj(d["lon"], d["lat"])
-                    dots += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.2"/>'
-        cls = "map mini" if mini else "map"
-        return (f'<svg class="{cls}" viewBox="0 0 {W:.0f} {H:.0f}" '
-                + ('aria-hidden="true"' if mini else f'role="group" aria-label="{esc(t["map_title"])}"')
-                + f'>{"" if mini else HATCH}<g class="provs">{"".join(shapes)}</g><g class="dots">{dots}</g></svg>')
+                    x, y = TH_PROJ(d["lon"], d["lat"])
+                    dots += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.4"/>'
+        if mini:
+            return f'<svg class="map mini" viewBox="0 0 {TW:.0f} {TH:.0f}" aria-hidden="true"><g>{shapes}</g><g class="dots">{dots}</g></svg>'
+        return (f'<svg class="map th" data-lens="score" viewBox="0 0 {TW:.0f} {TH:.0f}" role="group" aria-label="Map of Thailand by province">{HATCH}'
+                f'<g class="units">{shapes}</g></svg>')
 
-    def legend(lang):
-        t = STR[lang]
-        sw = "".join(f'<i class="s{i}"></i>' for i in range(1, 8))
-        dv = "".join(f'<i class="d{i}"></i>' for i in range(1, 8))
-        return (f'<div class="legend" data-for="score"><span>{esc(t["legend_low"])}</span>{sw}<span>{esc(t["legend_high"])}</span>'
-                f'<i class="nn"></i><span>{esc(t["no_data"])}</span></div>'
-                f'<div class="legend" data-for="dep cr" hidden><span class="num">−10%</span>{dv}<span class="num">+10%</span>'
-                f'<i class="nn"></i><span>{esc(t["no_data"])}</span></div>')
+    # ── ranked lists (reorder with FLIP on lens change)
+    def rank_list(units, url_of, name_of, native_of, lang_of, cls="", limit=None, extra=""):
+        keys = ["score"] + lens_keys
+        ranked = sorted(units, key=lambda r: (r["score"] is None, -(r["score"] or 0)))
+        items = ""
+        for r in ranked:
+            order = " ".join(f'data-r-{k}="{r.get(k + "_rank") if k != "score" else r.get("rank") or 999}"' for k in keys)
+            shown = "–" if r["score"] is None else f'{r["score"]:.0f}'
+            vals = " ".join(f'data-v-{k}="{esc(shown if k == "score" else pct(r.get(k)))}"' for k in keys)
+            items += (f'<li {order} {vals}><a href="{U(url_of(r))}"><span class="pos">{r.get("rank") or "–"}</span>'
+                      f'<span class="nm">{esc(name_of(r))}{native(native_of(r), lang_of(r))}</span>'
+                      f'<span class="bar" style="--w:{(r["score"] or 0):.0f}%"></span><span class="val">{esc(shown)}</span></a></li>')
+        return f'<ol class="rlist {cls}"{f" data-limit={limit}" if limit else ""}>{items}</ol>{extra}'
 
-    for lang in LANGS:
-        t = STR[lang]
-        pl, pl0 = period_label(latest, lang), period_label(y1, lang)
-        chip = (f'<span class="chip">{esc(t["data_as_of"].format(p=pl))}'
-                + (f' · {esc(t["prelim"])}' if meta["latest_prelim"] else "") + "</span>")
+    # ── HOME
+    Rv = list(R.values())
+    lead = {k: max((r for r in Rv if r[k] is not None), key=lambda r: r[k]) for k in lens_keys}
+    th_lead = {k: max((t for t in T.values() if t[k] is not None), key=lambda t: t[k]) for k in lens_keys}
+    sea_pop = sum(r["pop"] for r in Rv if r["pop"])
+    kpis = "".join(
+        f'<a class="kpi reveal" href="{U(c_url(lead[k]))}">{icon(k)}<span class="k">{esc(LENS[k][1])}</span>'
+        f'<span class="v up" data-count="{esc(pct(lead[k][k]))}">{esc(pct(lead[k][k]))}</span>'
+        f'<span class="s">{esc(lead[k]["name"])}, {lead[k][k + "_year"]}</span></a>'
+        for k in lens_keys)
+    th_lists = ""
+    for k in ["score"] + lens_keys:
+        key = "score" if k == "score" else k
+        top = sorted([t for t in T.values() if t.get(key) is not None], key=lambda t: -t[key])[:8]
+        rows = "".join(
+            f'<li><a href="{U(p_url(t))}"><span class="pos">{i}</span><span class="nm">{esc(t["name"])}{native(t["native"])}</span>'
+            f'<span class="val {tone(t[key]) if k != "score" else ""}">{esc(f"{t[key]:.0f}" if k == "score" else pct(t[key]))}</span></a></li>'
+            for i, t in enumerate(top, 1))
+        sub = "Momentum across all four lenses" if k == "score" else f"{LENS[k][2]}, {base_of[k]} to {asof[k]}"
+        th_lists += f'<div class="tlist" data-for="{k}"{"" if k == "score" else " hidden"}><p class="sub">{esc(sub)}</p><ol class="rlist plain">{rows}</ol></div>'
+    top_d = sorted([d for d in D if d.get("score") is not None], key=lambda d: d["rank"])[:10]
+    leaving = sorted([d for d in D if d["dep_yoy"] is not None and d["in_latest"]], key=lambda d: d["dep_yoy"])[:5]
 
-        # ── 홈
-        nat = meta["national"]
-        top_d = scored_d[:10]
-        top_p = scored_p[:10]
-        leaving = sorted([d for d in D if d["dep_yoy"] is not None and d["in_latest"]], key=lambda d: d["dep_yoy"])[:10]
-        br_los = sorted([d for d in D if d["br_change"] is not None and d["br_change"] < 0],
-                        key=lambda d: (d["br_change"], d["dep_yoy"] or 0))[:10]
-        dropped = [d for d in D if not d["in_latest"] and any(r[0] == y1 and r[1] is not None for r in d["series"])]
+    def drow(d, val, key="dep_yoy"):
+        return (f'<li><a href="{U(d_url(d))}"><span class="nm">{esc(d["name_en"])}{native(d["name_th"])}'
+                f'<small>{esc(T[d["prov"]]["name"])}</small></span><span class="val {tone(val)}">{pct(val)}</span></a></li>')
 
-        prov_list = "".join(
-            f'<li><a href="{p_url(lang, p)}"><span class="num rk">{p["rank"]}</span>'
-            f'<span class="nm">{esc(pname(p, lang))}<small>{esc(p["name_en"] if lang == "th" else p["name_th"])}</small></span>'
-            f'{score_badge(p["score"], lang, "sm")}<span class="num {growth_cls(p["dep_yoy"])}">{pct(p["dep_yoy"])}</span></a></li>'
-            for p in top_p)
-        dropped_html = ""
-        if dropped:
-            dropped_html = (f'<section class="card"><h2>{esc(t["dropped_title"])}</h2>'
-                            f'<p class="note">{esc(t["dropped_note"].format(p=pl0))}</p><ul class="pills">'
-                            + "".join(f'<li><a href="{d_url(lang, d)}">{esc(dname(d, lang))}'
-                                      f'<small>{esc(pname(Pm[d["prov"]], lang))}</small></a></li>'
-                                      for d in sorted(dropped, key=lambda d: d["prov"]))
-                            + "</ul></section>")
-        body = f"""
+    coverage_rows = ""
+    for r in sorted(Rv, key=lambda r: r["name"]):
+        sub = '<td class="yes">Provinces and districts</td>' if r["iso"] == "THA" else '<td class="soon">Planned</td>'
+        coverage_rows += (f'<tr><th scope="row"><a href="{U(c_url(r))}">{esc(r["name"])}</a></th>'
+                          + "".join(f'<td>{r[k + "_year"] or "–"}</td>' for k in lens_keys) + sub + "</tr>")
+    home = f"""
 <section class="hero">
-  {chip}
-  <h1>{esc(t['hero'])}</h1>
-  <p class="lede">{esc(t['hero_sub'])}</p>
-  <div class="stats">
-    {stat(t['national_dep'], pct(nat['dep_yoy']), growth_cls(nat['dep_yoy']), t['vs_last_year'].format(p=pl0))}
-    {stat(t['n_districts'], f"{nat['n_covered']}", "", t['data_as_of'].format(p=pl))}
+  <h1>See where people, jobs, businesses and money are moving across Southeast&nbsp;Asia.</h1>
+  <p class="lede">Eleven countries and {big(sea_pop)} people, ranked on four kinds of movement from public data. Thailand goes down to province and district, updated monthly from its central bank.</p>
+</section>
+<section class="atlas" id="atlas">
+  <div class="atlas-map">
+    {lens_tabs(label="Region lens")}
+    <div class="mapframe">{sea_map()}</div>
+    {legend("the 11 countries")}
+  </div>
+  <aside class="atlas-side">
+    <h2 class="side-h">Ranking</h2>
+    <p class="sub" data-sub-score>Momentum: average rank across all four lenses</p>
+    {"".join(f'<p class="sub" data-sub-{k} hidden>{esc(LENS[k][1])}: latest year-on-year change</p>' for k in lens_keys)}
+    {rank_list(Rv, c_url, lambda r: r["name"], lambda r: r["native"], lambda r: NATIVE_LANG.get(r["iso"], "und"), cls="sea-list")}
+  </aside>
+</section>
+<section class="kpis">{kpis}</section>
+<section class="split reveal" id="thailand">
+  <div class="split-head">
+    <h2>Inside Thailand</h2>
+    <p>77 provinces on all four lenses. People from the civil registry, jobs and employers from social security, money from bank deposits and credit by district.</p>
+    <a class="btn" href="{U('/thailand/')}">Open the Thailand explorer</a>
+  </div>
+  <div class="split-body">
+    <div class="split-map">{lens_tabs(label="Thailand lens")}<div class="mapframe">{th_map()}</div>{legend("Thailand's 77 provinces")}</div>
+    <div class="split-list">{th_lists}</div>
   </div>
 </section>
-<div class="grid2">
-<section class="card mapcard" id="mapcard">
-  <div class="cardhead"><h2>{esc(t['map_title'])}</h2>
-    <div class="seg" role="radiogroup" aria-label="{esc(t['map_title'])}">
-      <button role="radio" aria-checked="true" data-m="score">{esc(t['metric_score'])}</button>
-      <button role="radio" aria-checked="false" data-m="dep">{esc(t['metric_dep'])}</button>
-      <button role="radio" aria-checked="false" data-m="cr">{esc(t['metric_cr'])}</button>
-    </div></div>
-  <div class="mapwrap" data-metric="score">{map_svg(lang)}</div>
-  {legend(lang)}
-  <div class="pick" id="pick" aria-live="polite"><span class="hint">{esc(t['map_hint'])}</span></div>
-  <template id="pick-tpl"><a class="pickcard" href=""><b class="nm"></b><span class="sc"></span>
-    <span class="row"><span>{esc(t['deposits'])}</span><b class="num dep"></b></span>
-    <span class="row"><span>{esc(t['credits'])}</span><b class="num cr"></b></span>
-    <span class="go">{esc(t['open_page'])} →</span></a></template>
+<section class="movers reveal">
+  <div><h2>Districts gaining money fastest</h2><p class="sub">Deposits, {month_label(y1)} to {month_label(latest)}</p>
+    <ol class="dlist">{"".join(drow(d, d["dep_yoy"]) for d in top_d)}</ol>
+    <a class="more" href="{U('/rankings/thailand-districts/')}">All {len([d for d in D if d.get('score') is not None])} districts</a></div>
+  <div><h2>Where deposits fell most</h2><p class="sub">Same period, same districts</p>
+    <ol class="dlist">{"".join(drow(d, d["dep_yoy"]) for d in leaving)}</ol>
+    <a class="more" href="{U('/rankings/thailand-deposit-growth/')}">Full list</a></div>
 </section>
-<section class="card">
-  <div class="cardhead"><h2>{esc(t['top_provinces'])}</h2><a href="/{lang}/rankings/provinces/">{esc(t['view_all'])} →</a></div>
-  <ol class="plist">{prov_list}</ol>
+<section class="coverage reveal">
+  <h2>What we cover</h2>
+  <p class="sub">Latest year available per lens at country level. National statistics are only compared inside a country, never across.</p>
+  <div class="tablewrap"><table><thead><tr><th scope="col">Country</th>{"".join(f'<th scope="col">{esc(LENS[k][0])}</th>' for k in lens_keys)}<th scope="col">Subnational</th></tr></thead>
+  <tbody>{coverage_rows}</tbody></table></div>
 </section>
-</div>
-<section class="card">
-  <div class="cardhead"><h2>{esc(t['top_districts'])}</h2><a href="/{lang}/rankings/districts/">{esc(t['view_all'])} →</a></div>
-  {district_table(top_d, lang)}
-  <p class="note">{esc(t['score_explain'].format(n=nD, m=nP))}</p>
-</section>
-<div class="grid2">
-<section class="card">
-  <div class="cardhead"><h2>{esc(t['money_leaving'])}</h2><a href="/{lang}/rankings/deposit-growth/">{esc(t['view_all'])} →</a></div>
-  {district_table(leaving, lang)}
-</section>
-<section class="card">
-  <div class="cardhead"><h2>{esc(t['branch_losers'])}</h2><a href="/{lang}/rankings/branches/">{esc(t['view_all'])} →</a></div>
-  {district_table(br_los, lang)}
-</section>
-</div>
-{dropped_html}
 """
-        ld = ('<script type="application/ld+json">' + json.dumps({
-            "@context": "https://schema.org", "@type": "Dataset",
-            "name": t["title_home"].format(p=pl), "description": t["desc_home"].format(p=pl),
-            "url": f"{SITE_URL}/{lang}/", "temporalCoverage": f"{meta['periods'][0]}/{latest}",
-            "spatialCoverage": "Thailand", "isBasedOn": meta["source"]["url"],
-            "creator": {"@type": "Organization", "name": "Where Money Moves"},
-        }, ensure_ascii=False) + "</script>")
-        write(f"/{lang}/", page(lang, f"/{lang}/", t["title_home"].format(p=pl), t["desc_home"].format(p=pl),
-                                body, meta, extra_head=ld))
+    ld = ('<script type="application/ld+json">' + json.dumps({
+        "@context": "https://schema.org", "@type": "Dataset", "name": "Where Money Moves — Southeast Asia",
+        "description": "Where people, jobs, businesses and money are moving across Southeast Asia.",
+        "url": SITE_URL + "/", "spatialCoverage": "Southeast Asia", "license": "https://creativecommons.org/licenses/by/4.0/",
+        "creator": {"@type": "Organization", "name": "Where Money Moves"}}, ensure_ascii=False) + "</script>")
+    write("/", page(U("/"), "Where Money Moves: where people, jobs, businesses and money are moving in Southeast Asia",
+                    "Rank 11 Southeast Asian countries and every Thai province on population, jobs, businesses and money. Public data, updated monthly.",
+                    home, meta, extra_head=ld))
 
-        # ── 주
-        for p in P:
-            ds = by_prov.get(p["id"], [])
-            cur = sorted([d for d in ds if d["in_latest"]], key=lambda d: -(d.get("score") or -1))
-            gone = [d for d in ds if not d["in_latest"]]
-            ctx = ""
-            f = figi.get(p["id"])
-            if f and f.get("population"):
-                y = ctx_src["year"] + (543 if lang == "th" else 0)
-                ctx = (f'<section class="card"><h2>{esc(t["context"])}</h2><div class="stats">'
-                       + stat(t["population"], f'{f["population"]:,.0f}', "", t["context_src"].format(y=y))
-                       + stat(t["gpp_pc"], (f'{f["gpp_per_capita"]:,.0f} ' + ("บาท" if lang == "th" else "baht")), "", t["context_src"].format(y=y))
-                       + "</div></section>")
-            if p["score"] is not None:
-                cov = t["coverage"].format(n=p["n_covered"], total=p["n_districts_total"])
-                stats = (stat(t["score"], f'{p["score"]:.0f}', "", t["rank_of"].format(r=p["rank"], n=nP))
-                         + stat(t["deposits"], pct(p["dep_yoy"]), growth_cls(p["dep_yoy"]), t["yoy"])
-                         + stat(t["credits"], pct(p["cr_yoy"]), growth_cls(p["cr_yoy"]), t["yoy"])
-                         + stat(t["branch_change"], signed_int(p["br_change"]), "", t["vs_last_year"].format(p=pl0)))
-            else:
-                cov = t["coverage_none"]
-                stats = ""
-            table = district_table(cur, lang, show_prov=False, rank_key="prov_rank", caption=t["district_table"]) if cur else ""
-            gone_html = ""
-            if gone:
-                gone_html = ('<ul class="pills">' + "".join(
-                    f'<li><a href="{d_url(lang, d)}">{esc(dname(d, lang))}</a></li>' for d in gone) + "</ul>")
-            name = pname(p, lang)
-            sub = p["name_en"] if lang == "th" else p["name_th"]
-            body = f"""
-<section class="hero prov">
-  <div class="herorow"><div>{chip}
-    <h1>{esc(name)} <small lang="{'en' if lang == 'th' else 'th'}">{esc(sub)}</small></h1>
-    <p class="note">{esc(cov)}</p></div>
-    {map_svg(lang, highlight=p['id'], mini=True)}</div>
-  <div class="stats">{stats}</div>
+    # ── COUNTRY pages
+    for r in Rv:
+        lang = NATIVE_LANG.get(r["iso"], "und")
+        S = r["series"]
+
+        def annual(series, fmt, title, since=2005):
+            pts = [(y, v) for y, v in series if y >= since]
+            return chart(pts, title, unit=fmt, x_label=lambda y: str(y), every=5, kind="line")
+
+        panels = (
+            lens_panel("people", pct(r["people"]), f"urban population, {r['people_year']}",
+                       f"#{r.get('people_rank', '–')} of 11",
+                       [("Population", big(r["pop"])), ("Urban share", f"{r['urban_share']*100:.0f}%" if r["urban_share"] else "–"),
+                        ("Net migration", f"{signed_int(int(r['netmig'])) if r['netmig'] is not None else '–'} ({r['netmig_year']})")],
+                       annual(S["people"], "", "Urban population")) +
+            lens_panel("jobs", pct(r["jobs"]), f"employed people, {r['jobs_year']}", f"#{r.get('jobs_rank', '–')} of 11",
+                       [("Employed", big(r["employed"])), ("Unemployment", f"{r['unemp']:.1f}% ({r['unemp_year']})" if r["unemp"] is not None else "–")],
+                       annual(S["jobs"], "", "Employed people (ILO-modelled)")) +
+            lens_panel("biz", pct(r["biz"]), f"new firms registered, {r['biz_year']}", f"#{r.get('biz_rank', '–')} of 11",
+                       [("New firms", f"{big(r['new_firms'])} ({r['new_firms_year']})"),
+                        ("Per 1,000 aged 15–64", f"{r['firm_density']:.2f}" if r["firm_density"] is not None else "–")],
+                       annual(S["biz"], "", "New limited-liability firms per year")) +
+            lens_panel("money", pct(r["money"]), f"real GDP, {r['money_year']}", f"#{r.get('money_rank', '–')} of 11",
+                       [("GDP", f"{big(r['gdp_usd'], '$')} ({r['gdp_year']})"), ("FDI inflows", f"{big(r['fdi'], '$')} ({r['fdi_year']})"),
+                        ("Remittances in", f"{big(r['remit'], '$')} ({r['remit_year']})" if r["remit"] else "–")],
+                       annual(S["money"], "$", "Real GDP (constant 2015 US$)"))
+        )
+        deep = ""
+        if r["iso"] == "THA":
+            deep = (f'<section class="callout reveal"><h2>Go deeper: 77 provinces, 264 districts</h2>'
+                    f'<p>Thailand has province-level data on all four lenses and monthly bank data by district.</p>'
+                    f'<a class="btn" href="{U("/thailand/")}">Open the Thailand explorer</a></section>')
+        else:
+            deep = (f'<section class="callout quiet reveal"><h2>Subnational data for {esc(r["name"])}</h2>'
+                    f'<p>Not yet. Country-level figures above are from the World Bank. Provinces and districts arrive country by country, starting with Malaysia.</p></section>')
+        others = "".join(f'<li><a href="{U(c_url(o))}">{esc(o["name"])}</a></li>' for o in sorted(Rv, key=lambda o: o["name"]) if o is not r)
+        body = f"""
+<section class="hero detail">
+  <div><h1>{esc(r['name'])} {native(r['native'], lang)}</h1>
+  <p class="lede">Momentum {('%.0f' % r['score']) if r['score'] is not None else '–'} out of 100, #{r.get('rank', '–')} of 11 Southeast Asian countries.</p></div>
+  <div class="mini-sea">{sea_map(highlight=r['iso'], interactive=False)}</div>
 </section>
-{f'<section class="card">{table}</section>' if table else ''}
-{f'<section class="card"><h2>{esc(t["dropped_title"])}</h2>{gone_html}</section>' if gone_html else ''}
-{ctx}
+<div class="panels">{panels}</div>
+{deep}
+<nav class="others" aria-label="Other countries"><h2>Other countries</h2><ul class="chips">{others}</ul></nav>
 """
-            dep_s, cr_s = pct(p["dep_yoy"]), pct(p["cr_yoy"])
-            path = p_url(lang, p)
-            write(path, page(lang, path, t["title_prov"].format(name=name, p=pl),
-                             t["desc_prov"].format(name=name, dep=dep_s, cr=cr_s, rank=(p.get("rank") or "–"), p=pl),
-                             body, meta, crumbs=[(t["home"], f"/{lang}/"), (name, path)]))
+        path = c_url(r)
+        write(path, page(U(path), f"{r['name']}: population, jobs, businesses and GDP growth | Where Money Moves",
+                         f"{r['name']}: urban population {pct(r['people'])}, employment {pct(r['jobs'])}, new firms {pct(r['biz'])}, real GDP {pct(r['money'])}. Ranked #{r.get('rank', '–')} of 11 in Southeast Asia.",
+                         body, meta, crumbs=[("Southeast Asia", "/"), (r["name"], path)],
+                         watch={"id": f"c-{r['iso']}", "name": r["name"], "url": U(path)}))
 
-        # ── 군
-        for d in D:
-            p = Pm[d["prov"]]
-            name, prov = dname(d, lang), pname(p, lang)
-            last_p = next((r[0] for r in reversed(d["series"]) if r[1] is not None), None)
-            notice = ""
-            if not d["in_latest"]:
-                notice = f'<p class="warn">{esc(t["not_in_latest"].format(p=period_label(last_p, lang)))}</p>'
-            if d["cr_yoy"] is not None and abs(d["cr_yoy"]) > SPIKE:
-                notice += f'<p class="warn">⚠ {esc(t["spike"])}</p>'
-            stats = ""
-            if d.get("score") is not None:
-                stats += stat(t["score"], f'{d["score"]:.0f}', "", t["rank_of"].format(r=d["rank"], n=nD))
-            stats += (stat(t["deposits"], pct(d["dep_yoy"]), growth_cls(d["dep_yoy"]), t["yoy"])
-                      + stat(t["credits"], pct(d["cr_yoy"]), growth_cls(d["cr_yoy"]), t["yoy"])
-                      + stat(t["branches"], f'{d["branches"]}' if d["branches"] is not None else "–", "",
-                             f'{signed_int(d["br_change"])} {t["vs_last_year"].format(p=pl0)}' if d["br_change"] is not None else "")
-                      + stat(t["dep_balance"], money(d["deposits"], lang), "", pl if d["in_latest"] else "")
-                      + (stat(t["three_year"], pct(d["dep_3y"]), growth_cls(d["dep_3y"]),
-                              t["vs_last_year"].format(p=period_label(meta["base_3y"], lang))) if d["dep_3y"] is not None else ""))
-            charts = (line_chart(d["series"], 1, t["chart_dep"], lang, y1)
-                      + line_chart(d["series"], 2, t["chart_cr"], lang, y1)
-                      + line_chart(d["series"], 3, t["chart_br"], lang, y1))
-            months_rows = "".join(
-                f'<tr><th scope="row">{esc(period_label(r[0], lang))}</th>'
-                f'<td class="num">{"–" if r[1] is None else f"{r[1]/1e6:,.0f}"}</td>'
-                f'<td class="num">{"–" if r[2] is None else f"{r[2]/1e6:,.0f}"}</td>'
-                f'<td class="num">{"–" if r[3] is None else r[3]}</td></tr>'
-                for r in reversed(d["series"][-13:]))
-            sibs = sorted([x for x in by_prov[d["prov"]] if x["id"] != d["id"] and x["in_latest"]],
-                          key=lambda x: -(x.get("score") or -1))
-            sib_html = "".join(f'<li><a href="{d_url(lang, x)}">{esc(dname(x, lang))}'
-                               f'<span class="num {growth_cls(x["dep_yoy"])}">{pct(x["dep_yoy"])}</span></a></li>' for x in sibs)
-            u = unit(d, lang)
-            sub = d["name_en"] if lang == "th" else d["name_th"]
-            body = f"""
+    # ── THAILAND explorer
+    trows = ""
+    for t in sorted(T.values(), key=lambda t: (t["score"] is None, -(t["score"] or 0))):
+        trows += (f'<tr><td class="num pos">{t.get("rank") or "–"}</td><th scope="row"><a href="{U(p_url(t))}">{esc(t["name"])}</a>{native(t["native"])}</th>'
+                  f'<td data-v="{"" if t["score"] is None else round(t["score"], 2)}">{score_pill(t["score"])}</td>'
+                  + value_cell(t["people"]) + value_cell(t["jobs"]) + value_cell(t["biz"]) + value_cell(t["money"]) + "</tr>")
+    explorer = f"""
 <section class="hero">
-  {chip}
-  <h1>{esc(name)} <small lang="{'en' if lang == 'th' else 'th'}">{esc(sub)}</small></h1>
-  <p class="lede">{esc(u)} · <a href="{p_url(lang, p)}">{esc(t['province'])} {esc(prov)}</a>
-  {f" · {esc(t['in_province'])} #{d['prov_rank']}" if d.get('prov_rank') else ""}</p>
-  {notice}
-  <div class="stats">{stats}</div>
+  <h1>Thailand, province by province</h1>
+  <p class="lede">Where people are registering, where formal jobs and employers are being added, and where bank money is growing. Each lens has its own latest date, shown with the number.</p>
 </section>
-<section class="card charts">{charts}</section>
-<section class="card"><details><summary>{esc(t['monthly_table'])}</summary>
-<div class="tablewrap"><table class="plain"><thead><tr><th scope="col">{esc(t['month'])}</th>
-<th scope="col" class="num">{esc(t['chart_dep'])}</th><th scope="col" class="num">{esc(t['chart_cr'])}</th>
-<th scope="col" class="num">{esc(t['chart_br'])}</th></tr></thead><tbody>{months_rows}</tbody></table></div></details></section>
-{f'<section class="card"><h2>{esc(t["other_districts"])}</h2><ul class="pills">{sib_html}</ul></section>' if sib_html else ''}
+<section class="split flush">
+  <div class="split-body">
+    <div class="split-map">{lens_tabs(label="Thailand lens")}<div class="mapframe tall">{th_map()}</div>{legend("Thailand's 77 provinces")}</div>
+    <div class="split-list">
+      <dl class="asof">{"".join(f'<div>{icon(k)}<dt>{esc(LENS[k][0])}</dt><dd>{esc(LENS[k][2])}<br><small>{esc(base_of[k])} to {esc(asof[k])}</small></dd></div>' for k in lens_keys)}</dl>
+    </div>
+  </div>
+</section>
+<section class="reveal">
+  <h2>All 77 provinces</h2>
+  <p class="sub">Select a column heading to sort. Momentum is the average rank across the four lenses.</p>
+  <div class="tablewrap"><table class="rank" data-sortable><thead><tr><th scope="col" class="num">#</th><th scope="col">Province</th>
+  <th scope="col"><button data-k="2">Momentum</button></th><th scope="col" class="num"><button data-k="3">People</button></th>
+  <th scope="col" class="num"><button data-k="4">Jobs</button></th><th scope="col" class="num"><button data-k="5">Businesses</button></th>
+  <th scope="col" class="num"><button data-k="6">Money</button></th></tr></thead><tbody>{trows}</tbody></table></div>
+</section>
 """
-            path = d_url(lang, d)
-            write(path, page(lang, path, t["title_dist"].format(name=name, prov=prov, p=pl),
-                             t["desc_dist"].format(unit=(u if lang == "th" else ""), name=name, prov=prov,
-                                                   dep=pct(d["dep_yoy"]), cr=pct(d["cr_yoy"]),
-                                                   br=d["branches"] if d["branches"] is not None else "–", p=pl),
-                             body, meta,
-                             crumbs=[(t["home"], f"/{lang}/"), (prov, p_url(lang, p)), (name, path)]))
+    write("/thailand/", page(U("/thailand/"), "Thailand provinces ranked by population, jobs, businesses and money | Where Money Moves",
+                             "All 77 Thai provinces ranked on registered population, formal employment, registered employers and bank money growth.",
+                             explorer, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/")]))
 
-        # ── 순위
-        live = [d for d in D if d["in_latest"]]
+    # ── PROVINCE pages
+    for tis, t in T.items():
+        ds = by_prov.get(tis, [])
+        cur = sorted([d for d in ds if d["in_latest"]], key=lambda d: -(d.get("score") or -1))
+        gone = [d for d in ds if not d["in_latest"]]
+        yr = lambda pts: [(y, v) for y, v in pts]
+        panels = (
+            lens_panel("people", pct(t["people"]), f"registered population, {base_of['people']} to {asof['people']}",
+                       f"#{t.get('people_rank', '–')} of 77",
+                       [("Registered population", f"{t['pop']:,}"), ("Five-year change", pct(t["people_5y"])),
+                        ("Households", f"{t['households']:,} ({pct(t['hh_growth'])})")],
+                       chart(yr(t["pop_series"]), "Registered population, December", x_label=str, every=1, kind="dots"),
+                       "Counts people at their registered address. It undercounts places people move to without re-registering.") +
+            lens_panel("jobs", pct(t["jobs"]), f"formal-sector employees, {base_of['jobs']} to {asof['jobs']}",
+                       f"#{t.get('jobs_rank', '–')} of 77",
+                       [("Insured employees (Section 33)", f"{t['insured']:,}"), ("Three-year change", pct(t["jobs_3y"]))],
+                       chart(yr(t["ins_series"]), "Section 33 insured employees, December", x_label=str, every=1, kind="dots")) +
+            lens_panel("biz", pct(t["biz"]), f"employers registered with SSO, {base_of['biz']} to {asof['biz']}",
+                       f"#{t.get('biz_rank', '–')} of 77",
+                       [("Registered employers", f"{t['enterprises']:,}"), ("Three-year change", pct(t["biz_3y"])),
+                        ("Employees per employer", f"{t['firm_size']:.1f}" if t["firm_size"] else "–")],
+                       chart(yr(t["ent_series"]), "Employers registered with SSO, December", x_label=str, every=1, kind="dots"),
+                       "Proxy for businesses. Every employer with staff must register with SSO.") +
+            lens_panel("money", pct(t["money"]), f"bank deposits, {base_of['money']} to {asof['money']}",
+                       f"#{t.get('money_rank', '–')} of 68" if t["money"] is not None else "No bank data",
+                       [("Credit", pct(t["credit"])), ("Branches", f"{t['branches'] or '–'} ({signed_int(t['br_change'])} in a year)"),
+                        ("Districts covered", f"{t['n_covered']} of {t['n_districts_total']}")],
+                       "", "Sum of districts with four or more commercial banks, the only ones the Bank of Thailand publishes.")
+        )
+        drows = ""
+        for d in cur:
+            flag = ' <span class="flag" title="Unusual credit swing">!</span>' if d["cr_yoy"] is not None and abs(d["cr_yoy"]) > SPIKE else ""
+            drows += (f'<tr><td class="num pos">{d.get("prov_rank") or "–"}</td><th scope="row"><a href="{U(d_url(d))}">{esc(d["name_en"])}</a>{native(d["name_th"])}</th>'
+                      + value_cell(d["dep_yoy"]) + value_cell(d["cr_yoy"]).replace("</td>", flag + "</td>")
+                      + f'<td class="num" data-v="{d["br_change"] if d["br_change"] is not None else ""}">{signed_int(d["br_change"])}</td>'
+                      f'<td class="sp">{spark([r[1] for r in d["series"][-25:]])}</td></tr>')
+        dtable = ""
+        if drows:
+            dtable = (f'<section class="reveal"><h2>Districts</h2><p class="sub">Bank money, {month_label(y1)} to {month_label(latest)}</p>'
+                      f'<div class="tablewrap"><table class="rank" data-sortable><thead><tr><th scope="col" class="num">#</th><th scope="col">District</th>'
+                      f'<th scope="col" class="num"><button data-k="2">Deposits</button></th><th scope="col" class="num"><button data-k="3">Credit</button></th>'
+                      f'<th scope="col" class="num"><button data-k="4">Branches</button></th><th scope="col" class="sp"><span class="sr-only">Trend</span></th></tr></thead>'
+                      f'<tbody>{drows}</tbody></table></div></section>')
+        if gone:
+            dtable += ('<section class="reveal"><h2>Dropped from the bank table</h2><p class="sub">Fell below four commercial banks during the year.</p><ul class="chips">'
+                       + "".join(f'<li><a href="{U(d_url(d))}">{esc(d["name_en"])}</a></li>' for d in gone) + "</ul></section>")
+        near = sorted([o for o in T.values() if o["region"] == t["region"] and o is not t], key=lambda o: -(o["score"] or 0))[:8]
+        body = f"""
+<section class="hero detail">
+  <div><h1>{esc(t['name'])} {native(t['native'])}</h1>
+  <p class="lede">Momentum {('%.0f' % t['score']) if t['score'] is not None else '–'} out of 100, #{t.get('rank', '–')} of 77 provinces.{f" GPP per head {t['gpp_pc']:,.0f} baht ({ctx['year']})." if t['gpp_pc'] else ""}</p></div>
+  {th_map(highlight=tis, mini=True)}
+</section>
+<div class="panels">{panels}</div>
+{dtable}
+<nav class="others" aria-label="Nearby provinces"><h2>Elsewhere in the {esc(t['region'])} region</h2><ul class="chips">{"".join(f'<li><a href="{U(p_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
+"""
+        path = p_url(t)
+        write(path, page(U(path), f"{t['name']} province: population, jobs, businesses and bank money | Where Money Moves",
+                         f"{t['name']}, Thailand: registered population {pct(t['people'])}, formal jobs {pct(t['jobs'])}, employers {pct(t['biz'])}, deposits {pct(t['money'])}. #{t.get('rank', '–')} of 77 provinces.",
+                         body, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/"), (t["name"], path)],
+                         watch={"id": f"p-{tis}", "name": t["name"], "url": U(path)}))
 
-        def ranked(key):
-            xs = sorted([d for d in live if d[key] is not None], key=lambda d: -d[key])
-            for i, d in enumerate(xs, 1):
-                d["_r"] = i
-            return xs
+    # ── DISTRICT pages
+    nD = len([d for d in D if d.get("score") is not None])
+    for d in D:
+        t = T[d["prov"]]
+        unit = "Khet" if d["prov"] == "10" else "District"
+        notes = ""
+        if not d["in_latest"]:
+            lp = next((r[0] for r in reversed(d["series"]) if r[1] is not None), None)
+            notes += f'<p class="warn">Not in the latest Bank of Thailand table. Last figures: {month_label(lp)}.</p>'
+        if d["cr_yoy"] is not None and abs(d["cr_yoy"]) > SPIKE:
+            notes += '<p class="warn">Credit moved more than 50% in a year. This usually means one large borrower or loans moved between branches.</p>'
+        ser = d["series"]
+        mlabel = lambda p: p[:4] if p.endswith("-01") else ""
+        charts = (chart([(r[0], r[1] and r[1] / 1e6) for r in ser], "Deposits, million baht", x_label=mlabel, every=1, base=y1)
+                  + chart([(r[0], r[2] and r[2] / 1e6) for r in ser], "Credit, million baht", x_label=mlabel, every=1, base=y1)
+                  + chart([(r[0], r[3]) for r in ser], "Bank branches", x_label=mlabel, every=1, base=y1))
+        stats = ((stat("Money momentum", f'{d["score"]:.0f}', f'#{d["rank"]} of {nD} districts') if d.get("score") is not None else "")
+                 + stat("Deposits", pct(d["dep_yoy"]), f"{month_label(y1)} to {month_label(latest)}", tone(d["dep_yoy"]))
+                 + stat("Credit", pct(d["cr_yoy"]), "Same period", tone(d["cr_yoy"]))
+                 + stat("Branches", str(d["branches"]) if d["branches"] is not None else "–", f'{signed_int(d["br_change"])} in a year')
+                 + stat("Deposit balance", baht(d["deposits"]), month_label(latest) if d["in_latest"] else "")
+                 + (stat("Deposits over three years", pct(d["dep_3y"]), f"Since {month_label(meta['base_3y'])}", tone(d["dep_3y"])) if d["dep_3y"] is not None else ""))
+        months = "".join(f'<tr><th scope="row">{month_label(r[0])}</th><td class="num">{"–" if r[1] is None else f"{r[1]/1e6:,.0f}"}</td>'
+                         f'<td class="num">{"–" if r[2] is None else f"{r[2]/1e6:,.0f}"}</td><td class="num">{"–" if r[3] is None else r[3]}</td></tr>'
+                         for r in reversed(ser[-13:]))
+        sibs = sorted([x for x in by_prov[d["prov"]] if x is not d and x["in_latest"]], key=lambda x: -(x.get("score") or -1))
+        body = f"""
+<section class="hero detail">
+  <div><h1>{esc(d['name_en'])} {native(d['name_th'])}</h1>
+  <p class="lede">{unit} in <a href="{U(p_url(t))}">{esc(t['name'])}</a>{f", #{d['prov_rank']} in the province on bank money" if d.get('prov_rank') else ""}.</p>
+  {notes}</div>
+</section>
+<section class="stats reveal">{stats}</section>
+<section class="charts reveal">{charts}</section>
+<section class="reveal"><details><summary>Monthly figures</summary><div class="tablewrap"><table class="plain"><thead><tr><th scope="col">Month</th>
+<th scope="col" class="num">Deposits (฿M)</th><th scope="col" class="num">Credit (฿M)</th><th scope="col" class="num">Branches</th></tr></thead><tbody>{months}</tbody></table></div></details></section>
+{f'<nav class="others" aria-label="Other districts"><h2>Other districts in {esc(t["name"])}</h2><ul class="chips">' + "".join(f'<li><a href="{U(d_url(x))}">{esc(x["name_en"])} <span class="{tone(x["dep_yoy"])}">{pct(x["dep_yoy"])}</span></a></li>' for x in sibs) + "</ul></nav>" if sibs else ""}
+"""
+        path = d_url(d)
+        write(path, page(U(path), f"{d['name_en']}, {t['name']}: bank deposits and credit ({month_label(latest)}) | Where Money Moves",
+                         f"{d['name_en']} {unit.lower()}, {t['name']}, Thailand: deposits {pct(d['dep_yoy'])} and credit {pct(d['cr_yoy'])} year on year, {d['branches'] or '–'} bank branches.",
+                         body, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/"), (t["name"], p_url(t)), (d["name_en"], path)],
+                         watch={"id": f"d-{d['id']}", "name": f"{d['name_en']}, {t['name']}", "url": U(path)}))
 
-        rk_pages = {
-            "districts": (t["rk_districts"], scored_d, "rank"),
-            "deposit-growth": (t["rk_deposit"], ranked("dep_yoy"), "_r"),
-        }
-        for key, (title, rows, rkey) in rk_pages.items():
-            body = (f'<section class="hero">{chip}<h1>{esc(title)}</h1>'
-                    f'<p class="lede">{esc(t["rk_desc"].format(what=title, p1=pl, p0=pl0))}</p></section>'
-                    f'<section class="card">{district_table([dict(d) for d in rows], lang, rank_key=rkey, sortable=True)}</section>')
-            write(f"/{lang}/rankings/{key}/", page(lang, f"/{lang}/rankings/{key}/", f"{title} ({pl}) | {t['brand']}",
-                                                   t["rk_desc"].format(what=title, p1=pl, p0=pl0), body, meta,
-                                                   crumbs=[(t["home"], f"/{lang}/"), (title, f"/{lang}/rankings/{key}/")]))
-        for key, title, field in (("credit-growth", t["rk_credit"], "cr_yoy"), ("branches", t["rk_branches"], "br_change")):
-            rows = [dict(d) for d in ranked(field)]
-            if field == "br_change":
-                rows = sorted(rows, key=lambda d: (d["br_change"], d["dep_yoy"] or 0))
-                for i, d in enumerate(rows, 1):
-                    d["_r"] = i
-            body = (f'<section class="hero">{chip}<h1>{esc(title)}</h1>'
-                    f'<p class="lede">{esc(t["rk_desc"].format(what=title, p1=pl, p0=pl0))}</p></section>'
-                    f'<section class="card">{district_table(rows, lang, rank_key="_r", sortable=True)}</section>')
-            write(f"/{lang}/rankings/{key}/", page(lang, f"/{lang}/rankings/{key}/", f"{title} ({pl}) | {t['brand']}",
-                                                   t["rk_desc"].format(what=title, p1=pl, p0=pl0), body, meta,
-                                                   crumbs=[(t["home"], f"/{lang}/"), (title, f"/{lang}/rankings/{key}/")]))
-        # 주 순위
-        rows = "".join(
-            f'<tr><td class="num rk">{p.get("rank") or "–"}</td><th scope="row"><a href="{p_url(lang, p)}">{esc(pname(p, lang))}</a>'
-            f'<small>{esc(p["name_en"] if lang == "th" else p["name_th"])}</small></th>'
-            f'<td>{score_badge(p["score"], lang, "sm")}</td>'
-            f'<td class="num {growth_cls(p["dep_yoy"])}" data-v="{p["dep_yoy"] if p["dep_yoy"] is not None else ""}">{pct(p["dep_yoy"])}</td>'
-            f'<td class="num {growth_cls(p["cr_yoy"])}" data-v="{p["cr_yoy"] if p["cr_yoy"] is not None else ""}">{pct(p["cr_yoy"])}</td>'
-            f'<td class="num" data-v="{p["br_change"] if p["br_change"] is not None else ""}">{signed_int(p["br_change"])}</td>'
-            f'<td class="num">{p["n_covered"]}/{p["n_districts_total"]}</td></tr>'
-            for p in scored_p + [p for p in P if p["score"] is None])
-        title = t["rk_provinces"]
-        body = (f'<section class="hero">{chip}<h1>{esc(title)}</h1>'
-                f'<p class="lede">{esc(t["rk_desc"].format(what=title, p1=pl, p0=pl0))}</p></section>'
-                f'<section class="card"><div class="tablewrap"><table class="rank" data-sortable><thead><tr>'
-                f'<th scope="col" class="num">#</th><th scope="col">{esc(t["province"])}</th><th scope="col">{esc(t["score_short"])}</th>'
-                f'<th scope="col" class="num"><button data-k="3">{esc(t["deposits"])}</button></th>'
-                f'<th scope="col" class="num"><button data-k="4">{esc(t["credits"])}</button></th>'
-                f'<th scope="col" class="num"><button data-k="5">{esc(t["branches"])}</button></th>'
-                f'<th scope="col" class="num">{esc(t["n_districts"])}</th></tr></thead><tbody>{rows}</tbody></table></div>'
-                f'<p class="note">{esc(t["score_explain"].format(n=nD, m=nP))}</p></section>')
-        write(f"/{lang}/rankings/provinces/", page(lang, f"/{lang}/rankings/provinces/", f"{title} ({pl}) | {t['brand']}",
-                                                   t["rk_desc"].format(what=title, p1=pl, p0=pl0), body, meta,
-                                                   crumbs=[(t["home"], f"/{lang}/"), (title, f"/{lang}/rankings/provinces/")]))
+    # ── RANKINGS
+    rk_index = []
 
-        # ── 소개
-        secs = "".join(f'<section class="card prose"><h2>{esc(h)}</h2><p>{esc(b.format(n=nD))}</p></section>'
-                       for h, b in t["about_body"])
-        links = "".join(f'<li><a href="/{lang}/rankings/{k}/">{esc(v)}</a></li>' for k, v in (
-            ("districts", t["rk_districts"]), ("provinces", t["rk_provinces"]), ("deposit-growth", t["rk_deposit"]),
-            ("credit-growth", t["rk_credit"]), ("branches", t["rk_branches"])))
-        body = (f'<section class="hero"><h1>{esc(t["about"])}</h1></section>{secs}'
-                f'<section class="card prose"><h2>{esc(t["rankings"])}</h2><ul>{links}</ul>'
-                f'<p><a href="{esc(meta["source"]["url"])}">{esc(meta["source"]["name"])}</a> · {esc(meta["latest_src"])}</p></section>')
-        write(f"/{lang}/about/", page(lang, f"/{lang}/about/", f"{t['about']} | {t['brand']}", t["tagline"], body, meta,
-                                      crumbs=[(t["home"], f"/{lang}/"), (t["about"], f"/{lang}/about/")]))
+    def ranking_page(key, title, desc, head, rows):
+        body = (f'<section class="hero"><h1>{esc(title)}</h1><p class="lede">{esc(desc)}</p></section>'
+                f'<section><div class="tablewrap"><table class="rank" data-sortable><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div></section>')
+        path = f"/rankings/{key}/"
+        write(path, page(U(path), f"{title} | Where Money Moves", desc, body, meta,
+                         crumbs=[("Southeast Asia", "/"), ("Rankings", "/rankings/"), (title, path)]))
+        rk_index.append((path, title, desc))
 
-        # ── 검색 색인 · 매니페스트
-        idx = ([{"n": pname(p, lang), "a": p["name_en"] if lang == "th" else p["name_th"], "u": p_url(lang, p), "k": "p"} for p in P]
-               + [{"n": dname(d, lang), "a": f'{d["name_en"] if lang == "th" else d["name_th"]} · {pname(Pm[d["prov"]], lang)}',
-                   "u": d_url(lang, d), "k": "d"} for d in D])
-        (OUT / "assets" / f"search-{lang}.json").write_text(json.dumps(idx, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-        (OUT / f"manifest-{lang}.webmanifest").write_text(json.dumps({
-            "name": f'{t["brand"]} · {t["brand_sub"]}', "short_name": t["brand"], "lang": lang,
-            "start_url": f"/{lang}/?source=pwa", "scope": "/", "display": "standalone",
-            "background_color": "#0b1f1a", "theme_color": "#0b1f1a", "description": t["tagline"],
-            "icons": [{"src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png"},
-                      {"src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png"},
-                      {"src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}],
-        }, ensure_ascii=False, indent=1), encoding="utf-8")
+    head = ('<th scope="col" class="num">#</th><th scope="col">Country</th><th scope="col"><button data-k="2">Momentum</button></th>'
+            + "".join(f'<th scope="col" class="num"><button data-k="{i}">{esc(LENS[k][0])}</button></th>' for i, k in enumerate(lens_keys, 3)))
+    rows = "".join(f'<tr><td class="num pos">{r.get("rank")}</td><th scope="row"><a href="{U(c_url(r))}">{esc(r["name"])}</a></th>'
+                   f'<td data-v="{round(r["score"], 2) if r["score"] is not None else ""}">{score_pill(r["score"])}</td>'
+                   + "".join(value_cell(r[k]) for k in lens_keys) + "</tr>"
+                   for r in sorted(Rv, key=lambda r: r.get("rank") or 99))
+    ranking_page("southeast-asia", "Southeast Asian countries by momentum",
+                 "Urban population, employment, new firm registrations and real GDP, latest year-on-year change for each.", head, rows)
 
-    # ── 루트 · 크롤러 · 서비스워커
-    (OUT / "index.html").write_text(f"""<!doctype html>
-<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>เงินไหลไปไหน · Where Money Moves Thailand</title>
-<link rel="alternate" hreflang="th" href="{SITE_URL}/th/"><link rel="alternate" hreflang="en" href="{SITE_URL}/en/">
-<link rel="alternate" hreflang="x-default" href="{SITE_URL}/th/"><link rel="canonical" href="{SITE_URL}/th/">
-<script>location.replace((navigator.languages||[navigator.language||'']).some(function(l){{return /^th/i.test(l)}})?'/th/':'/en/')</script>
-<style>body{{font:16px system-ui;background:#0b1f1a;color:#e8f2ee;display:grid;place-items:center;min-height:100vh;margin:0}}a{{color:#7ee0b8;margin:0 12px}}</style>
-</head><body><p><a href="/th/">ภาษาไทย</a><a href="/en/">English</a></p></body></html>
-""", encoding="utf-8")
-    (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n")
-    (OUT / "sitemap.xml").write_text(
-        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "".join(f"<url><loc>{SITE_URL}{u}</loc><lastmod>{meta['built']}</lastmod></url>\n" for u in pages)
-        + "</urlset>\n")
-    sw = (STATIC / "sw.js").read_text().replace("__BUILD__", meta["build_id"])
-    (OUT / "sw.js").write_text(sw)
-    (OUT / "assets" / "sw.js").unlink(missing_ok=True)
+    head_t = ('<th scope="col" class="num">#</th><th scope="col">Province</th><th scope="col"><button data-k="2">Momentum</button></th>'
+              + "".join(f'<th scope="col" class="num"><button data-k="{i}">{esc(LENS[k][0])}</button></th>' for i, k in enumerate(lens_keys, 3)))
 
+    def trow(t, pos):
+        return (f'<tr><td class="num pos">{pos}</td><th scope="row"><a href="{U(p_url(t))}">{esc(t["name"])}</a>{native(t["native"])}</th>'
+                f'<td data-v="{round(t["score"], 2) if t["score"] is not None else ""}">{score_pill(t["score"])}</td>'
+                + "".join(value_cell(t[k]) for k in lens_keys) + "</tr>")
+
+    ts = sorted(T.values(), key=lambda t: (t["score"] is None, -(t["score"] or 0)))
+    ranking_page("thailand-provinces", "Thai provinces by momentum",
+                 "All 77 provinces, average rank across registered population, formal jobs, employers and bank deposits.",
+                 head_t, "".join(trow(t, t.get("rank") or "–") for t in ts))
+    for k, key, title in (("people", "thailand-population-growth", "Thai provinces by population growth"),
+                          ("jobs", "thailand-job-growth", "Thai provinces by formal job growth"),
+                          ("biz", "thailand-business-growth", "Thai provinces by business growth")):
+        srt = sorted([t for t in T.values() if t[k] is not None], key=lambda t: -t[k])
+        ranking_page(key, title, f"{LENS[k][2]}, {base_of[k]} to {asof[k]}.", head_t, "".join(trow(t, i) for i, t in enumerate(srt, 1)))
+
+    head_d = ('<th scope="col" class="num">#</th><th scope="col">District</th><th scope="col"><button data-k="2">Momentum</button></th>'
+              '<th scope="col" class="num"><button data-k="3">Deposits</button></th><th scope="col" class="num"><button data-k="4">Credit</button></th>'
+              '<th scope="col" class="num"><button data-k="5">Branches</button></th><th scope="col" class="sp"><span class="sr-only">Trend</span></th>')
+
+    def drank(d, pos):
+        flag = ' <span class="flag" title="Unusual credit swing">!</span>' if d["cr_yoy"] is not None and abs(d["cr_yoy"]) > SPIKE else ""
+        return (f'<tr><td class="num pos">{pos}</td><th scope="row"><a href="{U(d_url(d))}">{esc(d["name_en"])}</a>{native(d["name_th"])}<small>{esc(T[d["prov"]]["name"])}</small></th>'
+                f'<td data-v="{round(d["score"], 2) if d.get("score") is not None else ""}">{score_pill(d.get("score"))}</td>'
+                + value_cell(d["dep_yoy"]) + value_cell(d["cr_yoy"]).replace("</td>", flag + "</td>")
+                + f'<td class="num" data-v="{d["br_change"] if d["br_change"] is not None else ""}">{signed_int(d["br_change"])}</td>'
+                f'<td class="sp">{spark([r[1] for r in d["series"][-25:]])}</td></tr>')
+
+    live = [d for d in D if d["in_latest"]]
+    per = f"{month_label(y1)} to {month_label(latest)}"
+    ranking_page("thailand-districts", "Thai districts by money momentum", f"Bank deposits and credit, {per}. Districts with four or more commercial banks.",
+                 head_d, "".join(drank(d, d["rank"]) for d in sorted([d for d in D if d.get("score") is not None], key=lambda d: d["rank"])))
+    for key, title, f in (("thailand-deposit-growth", "Thai districts by deposit growth", "dep_yoy"),
+                          ("thailand-credit-growth", "Thai districts by credit growth", "cr_yoy")):
+        srt = sorted([d for d in live if d[f] is not None], key=lambda d: -d[f])
+        ranking_page(key, title, f"{per}.", head_d, "".join(drank(d, i) for i, d in enumerate(srt, 1)))
+    srt = sorted([d for d in live if d["br_change"] is not None], key=lambda d: (d["br_change"], d["dep_yoy"] or 0))
+    ranking_page("thailand-branch-closures", "Thai districts losing bank branches", f"Change in commercial-bank branches, {per}.",
+                 head_d, "".join(drank(d, i) for i, d in enumerate(srt, 1)))
+
+    body = ('<section class="hero"><h1>Rankings</h1><p class="lede">Every list on the site, as a sortable table.</p></section><ul class="rk-index">'
+            + "".join(f'<li class="reveal"><a href="{U(p)}"><b>{esc(t)}</b><span>{esc(d)}</span></a></li>' for p, t, d in rk_index) + "</ul>")
+    write("/rankings/", page(U("/rankings/"), "Rankings | Where Money Moves", "Sortable rankings of Southeast Asian countries, Thai provinces and districts.",
+                             body, meta, crumbs=[("Southeast Asia", "/"), ("Rankings", "/rankings/")]))
+
+    # ── COMPARE (client-rendered from compare.json)
+    cmp = {}
+    for r in Rv:
+        cmp[f"c-{r['iso']}"] = {"n": r["name"], "u": U(c_url(r)), "k": "Country", "s": r["score"],
+                                **{k: r[k] for k in lens_keys}, **{k + "y": str(r[k + "_year"]) for k in lens_keys}}
+    for t in T.values():
+        cmp[f"p-{t['id']}"] = {"n": t["name"], "a": t["native"], "u": U(p_url(t)), "k": "Thai province", "s": t["score"],
+                               **{k: t[k] for k in lens_keys}, **{k + "y": asof[k] for k in lens_keys}}
+    for d in D:
+        cmp[f"d-{d['id']}"] = {"n": f"{d['name_en']}, {T[d['prov']]['name']}", "a": d["name_th"], "u": U(d_url(d)), "k": "Thai district",
+                               "s": d.get("score"), "money": d["dep_yoy"], "moneyy": month_label(latest), "credit": d["cr_yoy"]}
+    (OUT / "assets" / "compare.json").write_text(json.dumps(cmp, ensure_ascii=False, separators=(",", ":")))
+    body = """
+<section class="hero"><h1>Compare</h1><p class="lede">Places you watch appear here side by side. Select Watch on any country, province or district page.</p>
+<p class="sub">Countries and Thai places use different measures (see <a href="__M__">Method</a>), and momentum is a rank within each place's own group, so compare like with like.</p></section>
+<section id="compare" class="compare" data-lenses='""" + esc(json.dumps([[k, LENS[k][0]] for k in lens_keys])) + """'>
+  <div class="empty"><p>Nothing to compare yet.</p><p class="sub">Try <a href="__T__">Thailand</a> or search with <kbd>/</kbd>, then select Watch.</p></div>
+</section>
+""".replace("__T__", U("/thailand/")).replace("__M__", U("/about/"))
+    write("/compare/", page(U("/compare/"), "Compare places | Where Money Moves", "Compare countries, Thai provinces and districts on people, jobs, businesses and money.",
+                            body, meta, crumbs=[("Southeast Asia", "/"), ("Compare", "/compare/")]))
+
+    # ── ABOUT
+    sections = [
+        ("Two layers that are never mixed",
+         "Countries are compared with World Bank indicators, which share definitions. Inside Thailand we use national sources, which are richer but not comparable with other countries. A Thai province is only ever ranked against other Thai provinces."),
+        ("The four lenses for countries",
+         "People is urban population growth: people moving into cities. Jobs is growth in employed people (labour force × (1 − unemployment), ILO-modelled). Businesses is growth in new limited-liability firms registered (World Bank Entrepreneurship data). Money is real GDP growth. Each uses its own latest year, shown next to the number."),
+        ("The four lenses for Thailand",
+         f"People: registered population, Department of Provincial Administration, {base_of['people']} to {asof['people']}. Jobs: employees insured under Section 33 of the Social Security Act, {base_of['jobs']} to {asof['jobs']}. Businesses: employers registered with the Social Security Office, the same period. Money: commercial-bank deposits, Bank of Thailand district table, {base_of['money']} to {asof['money']}."),
+        ("Proxies, and why",
+         "Thailand's company register has no clean province series in open data, so businesses are proxied by employers registered with social security: every business with staff must register. Registered population undercounts places people move to without changing their house registration, such as Bangkok and the Eastern Economic Corridor, and leaves out most migrant workers. Formal jobs leave out the informal sector, roughly half of Thai employment."),
+        ("Momentum score",
+         "Each lens is turned into a percentile rank within its layer (11 countries, 77 provinces or 234 districts), and the score is their average. We use ranks because Bangkok and Singapore are so much larger than their neighbours that raw values would hide everyone else. A missing lens is left out, never counted as zero."),
+        ("Bank data by district",
+         "The Bank of Thailand publishes deposits, credit and branches monthly, only for districts with four or more commercial banks (about 235). Province money figures add up those districts, so they are not full-province totals. Head-office balances are not assigned to any place. Credit can jump when a large borrower moves; we flag swings above ±50%. Values are nominal."),
+        ("Updates",
+         "Bank data monthly, social security yearly (December), registered population yearly, World Bank yearly. The pipeline stops rather than publish numbers it cannot verify: every source has a structure fingerprint and a total cross-check."),
+    ]
+    body = ('<section class="hero"><h1>How the numbers work</h1><p class="lede">Public data only. Every figure on the site comes from one of the sources below, unchanged except for the arithmetic described here.</p></section>'
+            + "".join(f'<section class="prose reveal"><h2>{esc(h)}</h2><p>{esc(b)}</p></section>' for h, b in sections))
+    write("/about/", page(U("/about/"), "Method and sources | Where Money Moves", "How Where Money Moves measures people, jobs, businesses and money across Southeast Asia.",
+                          body, meta, crumbs=[("Southeast Asia", "/"), ("Method", "/about/")]))
+
+    # ── search index, manifest, sw, sitemap, 404
+    idx = ([{"n": r["name"], "a": r["native"], "u": U(c_url(r)), "k": "Country"} for r in Rv]
+           + [{"n": t["name"], "a": t["native"], "u": U(p_url(t)), "k": "Province"} for t in T.values()]
+           + [{"n": d["name_en"], "a": f'{d["name_th"]}  {T[d["prov"]]["name"]}', "u": U(d_url(d)), "k": "District"} for d in D]
+           + [{"n": t, "a": "", "u": U(p), "k": "Ranking"} for p, t, _ in rk_index])
+    (OUT / "assets" / "search.json").write_text(json.dumps(idx, ensure_ascii=False, separators=(",", ":")))
+    (OUT / "manifest.webmanifest").write_text(json.dumps({
+        "name": "Where Money Moves", "short_name": "Money Moves", "lang": "en", "start_url": U("/?source=pwa"),
+        "scope": U("/"), "display": "standalone", "background_color": "#f6f7f4", "theme_color": "#0f1720",
+        "description": "Where people, jobs, businesses and money are moving across Southeast Asia.",
+        "icons": [{"src": U("/assets/icon-192.png"), "sizes": "192x192", "type": "image/png"},
+                  {"src": U("/assets/icon-512.png"), "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}],
+    }, indent=1))
+    (OUT / "sw.js").write_text((STATIC / "sw.js").read_text().replace("__BUILD__", meta["build_id"]).replace("__BASE__", BASE))
+    (OUT / "404.html").write_text(page(U("/404/"), "Page not found | Where Money Moves", "Page not found.",
+                                       f'<section class="hero"><h1>That page isn’t here</h1><p class="lede">It may have moved when the site went English-only. Search with <kbd>/</kbd>, or start from <a href="{U("/")}">Southeast Asia</a> or <a href="{U("/thailand/")}">Thailand</a>.</p></section>', meta))
+    (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}{U('/sitemap.xml')}\n")
+    (OUT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                                     + "".join(f"<url><loc>{SITE_URL}{U(p)}</loc><lastmod>{meta['built']}</lastmod></url>\n" for p in pages) + "</urlset>\n")
     size = sum(f.stat().st_size for f in OUT.rglob("*") if f.is_file())
-    print(f"site/  {len(pages)} pages  {size/1e6:.1f}MB  (latest {latest}, {nD} districts, {nP} provinces scored)")
+    print(f"site/  {len(pages)} pages  {size/1e6:.1f}MB  region 11 · provinces {len(T)} · districts {len(D)}")
 
 
 if __name__ == "__main__":

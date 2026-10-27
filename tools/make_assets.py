@@ -1,70 +1,89 @@
-"""아이콘 PNG와 링크 미리보기(OG) 이미지를 static/에 만든다. 데이터와 무관하므로 한 번만 돌리면 된다.
+"""Icon PNGs and the link-preview (OG) image in static/. Run after the data changes enough to matter.
 
   python tools/make_assets.py
 
-OG 이미지에 숫자를 넣지 않는다 — 새 달 데이터가 나와도 낡은 숫자가 링크 카드에 남지 않게.
-글자는 tools/text_png.swift(macOS CoreText, Thonburi)가 그린다 — 이 PIL에는 libraqm이 없어
-태국어 모음·성조 기호를 제자리에 얹지 못하고 점선 원으로 깨뜨린다.
+The OG image carries no numbers, so a new month of data never leaves a stale figure on a link card.
+The map is coloured by the current Momentum rank, which only shifts slowly.
+Text is drawn by tools/text_png.swift (macOS CoreText): this PIL has no libraqm, which Thai
+and other complex scripts need.
 """
 
 import json
+import math
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-STATIC = Path(__file__).resolve().parent.parent / "static"
-GREEN, MINT, BG = (11, 122, 85), (159, 240, 200), (11, 31, 26)
+ROOT = Path(__file__).resolve().parent.parent
+STATIC = ROOT / "static"
 TOOLS = Path(__file__).resolve().parent
+INK, PAPER, SEA, LAND, CURRENT = (23, 33, 43), (246, 247, 244), (213, 226, 232), (230, 232, 225), (15, 123, 133)
+RAMP = [(240, 231, 207), (216, 224, 198), (174, 210, 193), (127, 189, 180), (81, 161, 162), (42, 129, 136), (13, 93, 104)]
 
 
 def icon(size: int) -> Image.Image:
     s = size / 64
-    im = Image.new("RGBA", (size, size), GREEN + (255,))
+    im = Image.new("RGBA", (size, size), INK + (255,))
     d = ImageDraw.Draw(im)
-    for x, y, h in ((12, 36, 16), (27.5, 27, 25), (43, 17, 35)):
-        d.rounded_rectangle([x * s, y * s, (x + 9) * s, (y + h) * s], radius=2 * s, fill="white")
-    w = max(2, round(4 * s))
-    d.line([(12 * s, 27 * s), (28 * s, 16 * s), (36 * s, 21 * s), (50 * s, 10 * s)], fill=MINT, width=w, joint="curve")
-    d.line([(42 * s, 9 * s), (51 * s, 9 * s), (51 * s, 18 * s)], fill=MINT, width=w, joint="curve")
+    for x, y, h, c in ((12, 36, 16, RAMP[2]), (27.5, 27, 25, RAMP[4]), (43, 17, 35, (255, 255, 255))):
+        d.rounded_rectangle([x * s, y * s, (x + 9) * s, (y + h) * s], radius=2 * s, fill=c)
     return im
 
 
-def og(lang: str):
+def text_layers(lines, tmp):
+    specs = [{"text": t, "size": sz, "bold": b, "color": c, "out": f"{tmp}/{i}.png"} for i, (t, sz, b, c, _) in enumerate(lines)]
+    Path(tmp, "specs.json").write_text(json.dumps(specs, ensure_ascii=False), encoding="utf-8")
+    subprocess.run(["swift", str(TOOLS / "text_png.swift"), f"{tmp}/specs.json"], check=True)
+    return [Image.open(f"{tmp}/{i}.png").convert("RGBA") for i in range(len(lines))]
+
+
+def og():
+    sys.path.insert(0, str(ROOT))
+    import build                                     # reuse the site's own model for the map colours
+    geo = json.load(open(ROOT / "data" / "reference" / "sea.geo.json"))
+    R = build.region_model(json.load(open(ROOT / "data" / "processed" / "sea_wb.json")))
+
     W, H = 1200, 630
-    im = Image.new("RGB", (W, H), BG)
+    im = Image.new("RGB", (W, H), PAPER)
     d = ImageDraw.Draw(im)
-    # 바닥의 막대들 — 사이트의 순차 램프
-    ramp = [(27, 44, 38), (29, 63, 51), (30, 88, 67), (31, 116, 84), (40, 146, 103), (65, 179, 127), (116, 226, 170)]
-    for i in range(24):
-        h = 60 + (i * 37 % 170) + i * 6
-        d.rounded_rectangle([60 + i * 46, H - 40 - h, 60 + i * 46 + 34, H - 40], radius=6, fill=ramp[min(6, i * 7 // 24)])
-    im.paste(icon(96), (60, 56), icon(96))
-    lines = {
-        "th": [("เงินไหลไปไหน", 74, True, "ffffff", (180, 52)),
-               ("Where Money Moves · Thailand", 34, False, "9ff0c8", (182, 150)),
-               ("อำเภอไหนเงินฝากและสินเชื่อโตเร็วที่สุด", 36, False, "e8f2ee", (60, 214)),
-               ("ข้อมูลธนาคารแห่งประเทศไทย รายเดือน", 32, False, "9db5ab", (60, 268))],
-        "en": [("Where Money Moves", 70, True, "ffffff", (180, 58)),
-               ("Thailand · เงินไหลไปไหน", 34, False, "9ff0c8", (182, 150)),
-               ("Which districts are growing deposits and credit fastest", 36, False, "e8f2ee", (60, 214)),
-               ("Monthly Bank of Thailand data, by district", 32, False, "9db5ab", (60, 268))],
-    }[lang]
+    mx0, mw, mh = 640, 560, 630                      # right: the sea chart
+    d.rectangle([mx0, 0, W, H], fill=SEA)
+    lon0, lon1, lat0, lat1 = 91.0, 142.0, -12.0, 29.0
+    k = math.cos(math.radians(8))
+    sc = min(mw / ((lon1 - lon0) * k), mh / (lat1 - lat0))
+    P = lambda lon, lat: (mx0 + (lon - lon0) * k * sc, (lat1 - lat) * sc + 10)
+    for lon in range(95, 145, 5):
+        d.line([P(lon, lat1), P(lon, lat0 - 3)], fill=(195, 211, 219), width=1)
+    for lat in range(-10, 30, 5):
+        d.line([P(lon0, lat), P(lon1 + 3, lat)], fill=(195, 211, 219), width=1)
+    for f in geo["features"]:
+        col = LAND
+        if f["sea"]:
+            s = R[f["iso3"]]["score"]
+            col = RAMP[min(6, int((s or 0) / (100 / 7)))]
+        for ring in f["rings"]:
+            d.polygon([P(x, y) for x, y in ring], fill=col, outline=PAPER)
+    d.rectangle([0, 0, mx0, H], fill=PAPER)
+    im.paste(icon(84), (64, 64), icon(84))
+    lines = [("Where Money Moves", 54, True, "17212b", (64, 182)),
+             ("See where people, jobs,", 32, False, "17212b", (66, 270)),
+             ("businesses and money are moving", 32, False, "17212b", (66, 314)),
+             ("across Southeast Asia.", 32, False, "17212b", (66, 358)),
+             ("11 countries, 77 Thai provinces, 264 districts", 24, False, "5b6670", (66, 520))]
     with tempfile.TemporaryDirectory() as tmp:
-        specs = [{"text": t, "size": sz, "bold": b, "color": c, "out": f"{tmp}/{i}.png"}
-                 for i, (t, sz, b, c, _) in enumerate(lines)]
-        Path(tmp, "specs.json").write_text(json.dumps(specs, ensure_ascii=False), encoding="utf-8")
-        subprocess.run(["swift", str(TOOLS / "text_png.swift"), f"{tmp}/specs.json"], check=True)
-        for i, (*_, xy) in enumerate(lines):
-            layer = Image.open(f"{tmp}/{i}.png").convert("RGBA")
+        for layer, (*_, xy) in zip(text_layers(lines, tmp), lines):
             im.paste(layer, xy, layer)
-    im.save(STATIC / f"og-{lang}.png", optimize=True)
+    d.rectangle([66, 456, 66 + 120, 460], fill=CURRENT)
+    im.save(STATIC / "og.png", optimize=True)
 
 
 if __name__ == "__main__":
     icon(192).save(STATIC / "icon-192.png")
     icon(512).save(STATIC / "icon-512.png")
-    og("th")
-    og("en")
-    print("static/: icon-192.png icon-512.png og-th.png og-en.png")
+    og()
+    for old in ("og-th.png", "og-en.png"):
+        (STATIC / old).unlink(missing_ok=True)
+    print("static/: icon-192.png icon-512.png og.png")

@@ -1,39 +1,42 @@
 # BACKLOG
 
-MVP 먼저, 그다음 한 칸씩. 위에서부터 집는다.
+Ship small, then widen. Top to bottom.
 
-## v0 — MVP (2026-10-27)
+## v0 — Thailand MVP (2026-10-27) ✓
 
-- [x] BOT 군별 zip ETL — 2023-01~2026-07 (43개월), 양식 2종 지문, 개정판 우선, 예금·여신 세부합 교차검증
-- [x] 군 이름 퍼지 매칭(주 안에서만) + 별칭표 11줄 — 미매칭이면 멈춘다
-- [x] Money Momentum Score (예금·여신 YoY 백분위 평균), 군 234 · 주 68
-- [x] 정적 사이트 696쪽 (th/en), 주 지도(점수·예금·여신 전환), 순위 5종, 군 차트, 검색, PWA, sitemap·hreflang·JSON-LD
-- [x] 모바일·데스크톱·다크 모드 확인, 내부 링크 16,052개 깨진 것 0
+- [x] BOT district zip ETL, 43 months, two layouts, revised > preliminary, sum cross-checks
+- [x] District name matching inside each province + 11-line alias table; unmatched → stop
 
-## v0.1 — 공개 (사람 결정 필요)
+## v1 — Southeast Asia, four lenses (2026-10-27) ✓
 
-- [ ] 배포 주소 확정 → `SITE_URL` 교체 → Vercel 프로젝트 연결 (사용자 승인)
-- [ ] Google Search Console 등록 + sitemap 제출
-- [ ] 월간 갱신 자동화: GitHub Actions에서 `etl/etl.py` → 갱신 PR (blindspot-th의 refresh-data 패턴, 자동 머지 안 함)
-- [ ] ETL 회귀 테스트: 실제 시트 픽스처로 양식 2종 · n.a. · `#N/A` · Total 행
+- [x] English only; native names alongside (Thai, Khmer, Lao, Burmese glyph subsets)
+- [x] Region layer: 11 countries × People / Jobs / Businesses / Money from World Bank WDI
+- [x] Thailand: DOPA registered population (People), SSO insured (Jobs), SSO employers (Businesses, proxy)
+- [x] Momentum score per layer; layers never mixed on one axis
+- [x] Interactive layer: lens tabs + FLIP ranking, tooltip / tap sheet, ⌘K palette, Watch → Compare,
+      toasts, reveal + count-up, theme, share, PWA, view transitions, speculation rules
+- [x] Public repository
 
-## v0.2 — 두 번째 축
+## v1.1 — go live (needs the owner)
 
-- [ ] DBD(사업개발국) 주별 신규 법인 등록 — 확보 경로 검증부터 (A/B/C 등급)
-- [ ] SSO(사회보장청) 주별 피보험자 — 고용 축
-- [ ] DOPA 등록인구 (SPA라 Playwright 필요) — 인구 축
-- [ ] 점수를 "돈" 축 + 새 축의 가중합으로 확장. 축이 빠지면 0이 아니라 재정규화
+- [ ] Pick hosting: Vercel (`vercel.json`) or GitHub Pages (enable Pages, source "GitHub Actions", run `pages.yml`)
+- [ ] Set `SITE_URL` / `BASE_PATH` for that host; Search Console + sitemap
+- [ ] Monthly refresh workflow: run the four ETLs → open a data PR (never auto-merge)
+- [ ] ETL regression tests with trimmed real fixtures (BOT layouts, SSO regions, DOPA duplicate table)
 
-## v0.3 — 리텐션
+## v1.2 — Malaysia subnational (second country)
 
-- [ ] LINE OA "이 주 팔로우" — 월간 데이터 나오는 날 푸시
-- [ ] 월간 리포트 페이지 `/th/report/2569-07/` — "이달 돈은 어디로 흘렀나" (숫자는 계산, 문장은 템플릿)
-- [ ] 비교(2~5곳), 저장 — 여기서 처음으로 계정·DB(Supabase)가 필요하다
+- [ ] OpenDOSM (data.gov.my, open API): population by state/district, labour force by state, GDP by state
+- [ ] Proves the "one country at a time" structure: `/malaysia/{state}/`, its own layer and ranks
 
-## v0.4 — Screener
+## v1.3 — proxies where open data is thin
 
-- [ ] 조건 필터(예금 YoY > x, 여신 YoY > y, 지점 감소 없음, EEC 등) + 프리셋(프랜차이즈 출점, 지점·에이전트 확장)
+- [ ] Night-time lights (VIIRS monthly) as a common subnational Money proxy for countries without bank data
+- [ ] OSM points of interest, year on year (Overpass attic), as a Businesses proxy outside Thailand
+- [ ] Label every proxy on the page, next to the number
 
-## 이후 — 동남아
+## Later
 
-- [ ] 말레이시아(OpenDOSM)로 다국가 구조 검증 → 베트남(34개 성, 2025 통합 크로스워크) → 인도네시아(BPS)
+- [ ] Vietnam (34 provinces after the 2025 merger: crosswalk needed), Indonesia (BPS, 514 kab/kota), Philippines (PSA)
+- [ ] Screener with presets (franchise site, branch/agent expansion, factory land)
+- [ ] LINE OA / email alerts for watched places

@@ -1,6 +1,6 @@
-/* 페이지는 네트워크 우선(새 달 데이터가 바로 보이게), 정적 자산은 캐시 우선. */
-var V = "wmm-__BUILD__";
-var PRECACHE = ["/th/", "/en/", "/assets/app.css?v=__BUILD__", "/assets/app.js?v=__BUILD__", "/assets/icon.svg"];
+/* Pages: network first, so a new month of data shows at once. Assets: cache first (they carry ?v=build). */
+var V = "wmm-__BUILD__", BASE = "__BASE__";
+var PRECACHE = [BASE + "/", BASE + "/thailand/", BASE + "/compare/", BASE + "/assets/app.css?v=__BUILD__", BASE + "/assets/app.js?v=__BUILD__", BASE + "/assets/icon.svg"];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(V).then(function (c) { return c.addAll(PRECACHE); }).then(function () { return self.skipWaiting(); }));
@@ -21,7 +21,7 @@ self.addEventListener("fetch", function (e) {
       caches.open(V).then(function (c) { c.put(req, copy); });
       return res;
     }).catch(function () {
-      return caches.match(req).then(function (r) { return r || caches.match("/th/"); });
+      return caches.match(req).then(function (r) { return r || caches.match(BASE + "/"); });
     }));
     return;
   }
