@@ -38,7 +38,7 @@ def new(name: str):
     return json.loads(p.read_text()) if p.exists() else None
 
 
-FILES = ["meta.json", "districts.json", "provinces.json", "th_sso.json", "th_dopa.json", "sea_wb.json", "vn_gso.json"]
+FILES = ["meta.json", "districts.json", "provinces.json", "th_sso.json", "th_dopa.json", "sea_wb.json", "vn_gso.json", "my_dosm.json"]
 
 
 def strip_stamps(x):
@@ -151,6 +151,18 @@ def main() -> int:
             y1 = last(v1)
             pre = " (preliminary)" if y1 in v1["preliminary"].get(key, []) else ""
             lines.append(f"- {label}: latest year {last(v0) or '–'} → **{y1}**{pre}, national {pct(tot(v1, y1) / tot(v1, y1 - 1) - 1)}")
+        lines.append("")
+
+    # ── Malaysia DOSM
+    a0, a1 = old("my_dosm.json", args.base), new("my_dosm.json")
+    if a1:
+        lines.append("### Malaysia — Department of Statistics (OpenDOSM), 16 states\n")
+        for key, label in (("pop", "Population"), ("employed", "Employed"), ("gdp", "Real GDP")):
+            last = lambda d: max((p for s in d["states"].values() for p in s["series"][key]), default=None) if d else None
+            tot = lambda d, p: sum(s["series"][key].get(p, 0) for s in d["states"].values())
+            p1 = last(a1)
+            prev = str(int(p1[:4]) - 1) + p1[4:]          # same quarter or year, a year earlier
+            lines.append(f"- {label}: latest {last(a0) or '–'} → **{p1}**, national {pct(tot(a1, p1) / tot(a1, prev) - 1) if tot(a1, prev) else '–'}")
         lines.append("")
 
     # ── World Bank (region)

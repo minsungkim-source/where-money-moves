@@ -262,7 +262,7 @@
             dispose = m.mount(svg, host, { tipHTML: tipHTML });
             hint = doc.createElement("p");
             hint.className = "map3d-hint";
-            hint.textContent = "Height is rank on the selected lens. Drag to turn, scroll or pinch to zoom, select a province to open it.";
+            hint.textContent = "Height is rank on the selected lens. Drag to turn, scroll or pinch to zoom, select a " + (svg.classList.contains("my") ? "state" : "province") + " to open it.";
             frame.insertAdjacentElement("afterend", hint);
           }).catch(function () {
             frame.classList.remove("is3d"); host.remove(); set("2d");

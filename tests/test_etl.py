@@ -17,6 +17,7 @@ FIX = Path(__file__).resolve().parent / "fixtures"
 sys.path.insert(0, str(ROOT / "etl"))
 
 import etl          # noqa: E402
+import my_dosm      # noqa: E402
 import summary      # noqa: E402
 import th_dopa      # noqa: E402
 import th_sso       # noqa: E402
@@ -197,6 +198,66 @@ class Vietnam(unittest.TestCase):
         self.assertEqual(vn_gso.label(hue), "Thừa Thiên Huế")
         hcm = next(r for r in vn_gso.crosswalk() if r["gso_name"].startswith("TP."))
         self.assertEqual(vn_gso.names(hcm), ["hochiminh"])
+
+
+def my_raw(pop_scale=1.0, drop_state=None, district="Petaling", lfs_district="Petaling", gdp_total=None):
+    """Tiny OpenDOSM files: 16 states, each 100 people, 50 employed and RM 10 GDP, plus Supra RM 5."""
+    st = [s for s in my_dosm.STATES if s != drop_state]
+    ov = "both,overall,overall"
+    pop = "state,date,sex,age,ethnicity,population\n" + "".join(
+        f"{s},{y}-01-01,{ov},{100 * pop_scale if y == 2026 else 100}\n" for s in st for y in (2025, 2026))
+    pop += "".join(f"{s},2026-01-01,male,overall,overall,50\n" for s in st)          # breakdown rows are ignored
+    pop_my = "date,sex,age,ethnicity,population\n" + "".join(f"{y}-01-01,{ov},{1600}\n" for y in (2025, 2026))
+    pop_d = "state,district,date,sex,age,ethnicity,population\n" + "".join(
+        f"{s},{district if s == 'Selangor' else s},{y}-01-01,{ov},{100 * pop_scale if y == 2026 else 100}\n" for s in st for y in (2025, 2026))
+    lfs = "date,state,lf,lf_employed,lf_unemployed,lf_outside,p_rate,u_rate\n" + "".join(
+        f"{q},{s},52,50,2,20,70,3.8\n" for s in st for q in ("2025-04-01", "2026-04-01"))
+    lfs_my = "date,lf,lf_employed\n" + "".join(f"{q},832,800\n" for q in ("2025-04-01", "2026-04-01"))
+    lfs_d = "state,district,date,lf,lf_employed,lf_unemployed,lf_outside,p_rate,u_rate,ep_ratio\n" + f"Selangor,{lfs_district},2024-01-01,52,50,2,20,70,3.8,68\n"
+    lfs_d += "Selangor,{},2023-01-01,,,,,,,\n".format(lfs_district)                     # blank = not published
+    gdp = "series,date,state,sector,value\n" + "".join(f"abs,{y}-01-01,{s},p0,{5 if s == 'Supra' else 10}\nabs,{y}-01-01,{s},p5,6\n" for s in st + ["Supra"] for y in (2024, 2025))
+    gdp_my = "series,date,sector,value\n" + "".join(f"abs,{y}-01-01,p0,{gdp_total or 165}\n" for y in (2024, 2025))
+    return {"pop_state": pop, "pop_my": pop_my, "pop_district": pop_d, "lfs_state": lfs, "lfs_my": lfs_my,
+            "lfs_district": lfs_d, "gdp_state": gdp, "gdp_my": gdp_my}
+
+
+class Malaysia(unittest.TestCase):
+    def test_builds_16_states_and_skips_blank_district_values(self):
+        out = my_dosm.build(my_raw())
+        self.assertEqual(len(out["states"]), 16)
+        sel = out["states"]["selangor"]
+        self.assertEqual(sel["series"]["employed"], {"2025-Q2": 50.0, "2026-Q2": 50.0})
+        self.assertEqual(sel["districts"][0]["employed"], {"2024": 50.0})
+        self.assertEqual(out["supra_gdp"], {"2024": 5.0, "2025": 5.0})
+
+    def test_states_must_add_up_to_the_nation(self):
+        with self.assertRaises(etl.ParserDriftError):
+            my_dosm.build(my_raw(pop_scale=1.1))               # 2026 states sum to 1,760 against a national 1,600
+
+    def test_gdp_includes_supra_in_the_check(self):
+        with self.assertRaises(etl.ParserDriftError):
+            my_dosm.build(my_raw(gdp_total=160))              # 16 × 10 without Supra's 5
+
+    def test_a_missing_state_stops_the_run(self):
+        with self.assertRaises(etl.ParserDriftError):
+            my_dosm.build(my_raw(drop_state="Perlis"))
+
+    def test_district_spellings_are_aliased_or_stop(self):
+        out = my_dosm.build(my_raw(district="Ulu Langat", lfs_district="Hulu Langat"))
+        self.assertEqual(out["states"]["selangor"]["districts"][0]["name"], "Ulu Langat")
+        with self.assertRaises(etl.ParserDriftError):
+            my_dosm.build(my_raw(lfs_district="Nowhere"))
+
+    def test_a_renamed_column_stops_the_run(self):
+        raw = my_raw()
+        raw["lfs_state"] = raw["lfs_state"].replace("lf_employed", "employed")
+        with self.assertRaises(etl.ParserDriftError):
+            my_dosm.build(raw)
+
+    def test_quarters(self):
+        self.assertEqual(my_dosm.quarter("2026-04-01"), "2026-Q2")
+        with self.assertRaises(etl.ParserDriftError):
+            my_dosm.quarter("2026-05-01")
 
 
 class Words(unittest.TestCase):

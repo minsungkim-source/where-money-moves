@@ -131,6 +131,12 @@ main > * { min-width: 0; }
 .map.vn .former { fill: none; stroke: var(--paper); stroke-width: .7; stroke-dasharray: 2 2.4; opacity: .9; pointer-events: none; }
 .map.mini.vn { width: 86px; }
 .mapframe .map.vn { max-height: 80vh; width: auto; max-width: 100%; margin: 0 auto; }   /* the country is tall and thin */
+/* Malaysia: wide (peninsula + Borneo, moved closer). The cut between them is marked, and the note says so */
+.map.my .inset { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+.map.my .inset-note { font: 500 10px var(--body); fill: var(--muted); }
+.map.my .units .dot { stroke: var(--ink); stroke-width: .9; }
+.map.mini.my { width: 190px; height: auto; align-self: center; }
+@media (max-width: 640px) { .map.my .inset-note { font-size: 20px; } }
 .map.mini path { fill: var(--line); stroke: var(--paper); stroke-width: .8; }
 .map.mini path.on { fill: var(--current); }
 .map.mini circle { fill: var(--paper); stroke: var(--ink); stroke-width: .8; }
@@ -210,6 +216,13 @@ main > * { min-width: 0; }
 @media (max-width: 900px) { .split-body { grid-template-columns: 1fr; } }
 .split-map .mapframe { max-width: 460px; }
 .split-map .mapframe.tall { max-width: 520px; }
+/* a wide country (Malaysia): the map takes the full row, what sits beside it elsewhere goes underneath */
+.split-body.wide { grid-template-columns: 1fr; gap: 24px; }
+.split-body.wide .mapframe { max-width: none; }
+.split-body.wide .asof { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.split-body.wide .split-list .rlist { columns: 2 280px; column-gap: 36px; }
+.split-body.wide .split-list .rlist li { break-inside: avoid; }
+@media (max-width: 760px) { .split-body.wide .asof { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .tlist[hidden] { display: none; }
 .tlist .sub { margin-bottom: 4px; }
 .asof { margin: 0; display: grid; gap: 16px; }

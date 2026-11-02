@@ -38,10 +38,17 @@ Ship small, then widen. Top to bottom.
 - [ ] Vietnam has only province level (no district stats in PX-Web); a Money lens closer to Thailand's
       (bank credit by province) would need State Bank of Vietnam regional data
 
-## v1.3 — Malaysia subnational (third country)
+## v1.3 — Malaysia subnational (third country) ✓ (2026-11-02)
 
-- [ ] OpenDOSM (data.gov.my, open API): population by state/district, labour force by state, GDP by state
-- [ ] Proves the "one country at a time" structure: `/malaysia/{state}/`, its own layer and ranks
+- [x] OpenDOSM CSVs on storage.dosm.gov.my (the data.gov.my API copy lagged: population stopped at 2023 there):
+      state population to 2026, quarterly employed persons to Q2 2026, real GDP by state to 2025
+- [x] Checks: column fingerprint, 16 states everywhere, states = nation (GDP with "Supra"), districts = state
+- [x] `/malaysia/` explorer (full-width map, East Malaysia drawn closer and labelled), 16 state pages with every
+      district's population and employment, 4 rankings, home section, search finds districts, monthly refresh
+- [ ] Businesses lens is blank for Malaysia: no open state series. Candidates: SSM company registrations by state
+      (published only as PDFs), or the OSM proxy below
+- [ ] District GDP exists (`gdp_district_real_supply`, to 2020 only) and district household income (HIES 2022):
+      district pages with a map would need geoBoundaries MYS ADM2 and a name match for 166 districts
 
 ## v1.4 — proxies where open data is thin
 

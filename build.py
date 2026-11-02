@@ -6,11 +6,13 @@ Where Money Moves — static site generator (English only).
 
 "See where people, jobs, businesses and money are moving across Southeast Asia."
 
-Two layers, never mixed on one axis:
+Layers, never mixed on one axis:
   · Region    — 11 countries, World Bank (comparable definitions)
   · Thailand  — 77 provinces × 4 lenses (DOPA, SSO, SSO-as-proxy, BOT) and 264 districts (BOT money)
+  · Vietnam   — 34 provinces (2025 boundaries) × 4 lenses (NSO)
+  · Malaysia  — 16 states and federal territories × 3 lenses (DOSM; no open state series for businesses), 166 districts
 
-Pages: /, /country/{c}/, /thailand/, /thailand/{p}/, /thailand/{p}/{d}/, /rankings/…, /compare/, /about/, 404.
+Pages: /, /country/{c}/, /thailand/…, /vietnam/…, /malaysia/…, /rankings/…, /film/, /compare/, /about/, 404.
 Every page reads fully without JS. JS adds lens switching, tooltips, command palette, watchlist,
 compare, toasts, theme, share and install. Standard library only, so Vercel / Actions can run it as-is.
 """
@@ -188,6 +190,12 @@ class Proj:
 TH_PROJ = Proj(97.25, 20.55, 40.0, 13.0)
 VN_PROJ = Proj(102.0, 23.5, 40.0, 16.0)
 SEA_PROJ = Proj(90.0, 29.0, 15.0, 8.0)
+_MY = Proj(99.4, 7.6, 60.0, 4.0)
+MY_EAST, MY_SHIFT = 108.0, 3.6     # East Malaysia (Sarawak, Sabah, Labuan) is drawn 3.6° closer to the peninsula: an inset
+
+
+def MY_PROJ(lon, lat):
+    return _MY(lon - MY_SHIFT if lon > MY_EAST else lon, lat)
 SEA_BOX = (90.0, -12.0, 143.0, 29.0)
 LABEL_AT = {  # lon, lat — placed by hand on open land (or open sea for the small three)
     "MMR": (96.0, 21.6), "THA": (100.9, 15.6), "LAO": (102.6, 19.4), "VNM": (108.6, 14.2), "KHM": (104.9, 12.8),
@@ -305,7 +313,9 @@ def load():
     geo = json.load(open(REF / "sea.geo.json"))
     vn = json.load(open(DATA / "vn_gso.json"))
     vgeo = json.load(open(REF / "vn.geo.json"))
-    return meta, D, P, sso, dopa, wb, ctx, geo, vn, vgeo
+    my = json.load(open(DATA / "my_dosm.json"))
+    mgeo = json.load(open(REF / "my.geo.json"))
+    return meta, D, P, sso, dopa, wb, ctx, geo, vn, vgeo, my, mgeo
 
 
 def region_model(wb):
@@ -456,6 +466,58 @@ def vietnam_model(vn):
     return V, label
 
 
+MY_DESC = {  # what each lens measures inside Malaysia (OpenDOSM, 16 states and federal territories)
+    "people": "Population growth",
+    "jobs": "Employed persons growth, same quarter a year earlier",
+    "biz": "No open state series yet",
+    "money": "Real GDP growth (constant 2015 prices)",
+}
+
+
+def qlabel(q: str) -> str:
+    """'2026-Q2' → 'Q2 2026'"""
+    return f"{q[5:]} {q[:4]}"
+
+
+def malaysia_model(my):
+    """16 states and federal territories. Businesses has no open state series, so that lens stays empty (never zero)
+    and Momentum averages the other three."""
+    M = {}
+    for slug_, s in my["states"].items():
+        S = s["series"]
+        pop = {int(y): v for y, v in S["pop"].items()}
+        gdp = {int(y): v for y, v in S["gdp"].items()}
+        emp = S["employed"]
+        y, g, q = max(pop), max(gdp), max(emp)
+        q0 = f"{int(q[:4]) - 1}{q[4:]}"
+        r = {"id": slug_, "slug": slug_, "name": s["name"], "native": s["native"],
+             "people": growth(pop[y], pop.get(y - 1)), "people_5y": growth(pop[y], pop.get(y - 5)), "pop": pop[y] * 1000,
+             "jobs": growth(emp[q], emp.get(q0)), "employed": emp[q] * 1000,
+             "u_rate": S["u_rate"][q], "u_rate_prev": S["u_rate"].get(q0), "p_rate": S["p_rate"][q],
+             "biz": None,
+             "money": growth(gdp[g], gdp.get(g - 1)), "gdp": gdp[g], "gdp_5y": growth(gdp[g], gdp.get(g - 5)),
+             "gdp_pc": gdp[g] * 1e6 / (pop[g] * 1000) if g in pop else None,
+             "pop_series": sorted(pop.items()), "emp_series": sorted(emp.items()), "gdp_series": sorted(gdp.items()),
+             "sectors": {c: growth(v.get(str(g)), v.get(str(g - 1))) for c, v in s["sectors"].items()},
+             "sector_share": {c: (v.get(str(g)) or 0) / gdp[g] for c, v in s["sectors"].items()},
+             "districts": []}
+        for d in s["districts"]:
+            dp = {int(k): v for k, v in d["pop"].items()}
+            de = {int(k): v for k, v in d["employed"].items()}
+            dy, ey = max(dp), max(de) if de else None
+            r["districts"].append({"name": d["name"], "pop": dp[dy] * 1000, "people": growth(dp[dy], dp.get(dy - 1)),
+                                   "people_5y": growth(dp[dy], dp.get(dy - 5)),
+                                   "employed": de[ey] * 1000 if ey else None, "jobs": growth(de[ey], de.get(ey - 1)) if ey else None,
+                                   "u_rate": d["u_rate"].get(str(ey)) if ey else None, "pop_year": dy, "emp_year": ey})
+        M[slug_] = r
+    score_lenses(M, ["people", "jobs", "biz", "money"])
+    label = {"people": (f"{y - 1} to {y} (estimates)", y), "jobs": (f"{qlabel(q0)} to {qlabel(q)}", qlabel(q)),
+             "biz": ("no open state series", None), "money": (f"{g - 1} to {g}", g)}
+    years = {"district_pop": max(d["pop_year"] for m in M.values() for d in m["districts"]),
+             "district_emp": max((d["emp_year"] for m in M.values() for d in m["districts"] if d["emp_year"]), default=None)}
+    return M, label, years
+
+
 # ── plain-English summaries ──────────────────────────────────────────────
 # Every detail page opens with two or three sentences computed from its own numbers: where it is strongest,
 # where it is weakest, and one fact particular to it. Same data as the panels, said once in words.
@@ -464,6 +526,7 @@ PHRASE = {
     "region": {"people": "urban population growth", "jobs": "employment growth", "biz": "new firm registrations", "money": "real GDP growth"},
     "th": {"people": "registered population growth", "jobs": "formal job growth", "biz": "growth in registered employers", "money": "bank deposit growth"},
     "vn": {"people": "population growth", "jobs": "job growth", "biz": "new business registrations", "money": "enterprise revenue growth"},
+    "my": {"people": "population growth", "jobs": "job growth", "biz": "business growth", "money": "real GDP growth"},
 }
 
 
@@ -580,6 +643,7 @@ def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") 
   <nav class="nav" aria-label="Main">
     <a href="{U('/thailand/')}">Thailand</a>
     <a href="{U('/vietnam/')}">Vietnam</a>
+    <a href="{U('/malaysia/')}">Malaysia</a>
     <a href="{U('/rankings/')}">Rankings</a>
     <a href="{U('/compare/')}" class="cmp">Compare<span class="count" hidden></span></a>
     <a href="{U('/about/')}">Method</a>
@@ -594,7 +658,7 @@ def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") 
 <footer class="foot">
   <div>
     <p><b>Where Money Moves</b> tracks where people, jobs, businesses and money are moving across Southeast Asia, from public data only.</p>
-    <p>Sources: World Bank WDI (CC BY 4.0). Thailand: Bank of Thailand district deposits and credit, Social Security Office, Department of Provincial Administration (Open Data Common). Vietnam: National Statistics Office (PX-Web). Boundaries: Natural Earth, geoBoundaries/OCHA and Government of Viet Nam via HDX (CC BY 3.0 IGO), thailand-canonical-admin-names (CC BY 4.0).</p>
+    <p>Sources: World Bank WDI (CC BY 4.0). Thailand: Bank of Thailand district deposits and credit, Social Security Office, Department of Provincial Administration (Open Data Common). Vietnam: National Statistics Office (PX-Web). Malaysia: Department of Statistics, OpenDOSM (CC BY 4.0). Boundaries: Natural Earth, geoBoundaries/OCHA, Government of Viet Nam and UNHCR via HDX (CC BY 3.0 IGO), thailand-canonical-admin-names (CC BY 4.0).</p>
   </div>
   <p class="small">Built {meta['built']}. <a href="{U('/about/')}">How the numbers work</a>. <a href="https://github.com/minsungkim-source/where-money-moves">Source code</a>.</p>
 </footer>
@@ -685,16 +749,20 @@ def tone_from(s: str) -> str:
 # ── build ────────────────────────────────────────────────────────────────
 
 def main():
-    meta, D, P, sso, dopa, wb, ctx, geo, vn, vgeo = load()
+    meta, D, P, sso, dopa, wb, ctx, geo, vn, vgeo, my, mgeo = load()
     meta["build_id"] = meta["generated_at"][:19].replace(":", "").replace("-", "")
     meta["built"] = meta["generated_at"][:10]
     latest, y1 = meta["latest"], meta["yoy_base"]
     R = region_model(wb)
     T, by_prov = thailand_model(P, D, sso, dopa, ctx)
     V, vlab = vietnam_model(vn)
+    M, mlab, myears = malaysia_model(my)
 
     def v_url(v):
         return f"/vietnam/{v['slug']}/"
+
+    def m_url(m):
+        return f"/malaysia/{m['slug']}/"
     Pm = {p["id"]: p for p in P}
     lens_keys = [k for k, *_ in LENSES]
     asof = {"people": f"Dec {dopa['years'][-1]}", "jobs": f"Dec {sso['years'][-1]}",
@@ -844,6 +912,42 @@ def main():
         return (f'<svg class="map vn" data-lens="score" viewBox="0 0 {VW:.0f} {VH:.0f}" role="group" aria-label="Map of Vietnam by province (2025 boundaries)">'
                 f'<g class="units">{shapes}</g><path class="former" d="{vn_former}"/><path class="outline" d="{vn_outline}"/></svg>')
 
+    # Malaysia: the peninsula and Borneo, with East Malaysia moved closer (MY_PROJ). The three federal territories are
+    # a few pixels across, so they also get a marker dot; their shapes are drawn unsimplified so they never vanish.
+    MY_TINY = ("kuala-lumpur", "putrajaya", "labuan")
+    my_rings = {k: [[MY_PROJ(x, y) for x, y in r] for r in rs] for k, rs in mgeo["states"].items()}
+    my_full = {k: path_d(v, tol=None if k in MY_TINY else 0.5, min_len=0.0 if k in MY_TINY else 2.0) for k, v in my_rings.items()}
+    my_mini = {k: path_d(v, tol=None if k in MY_TINY else 1.2, min_len=0.0 if k in MY_TINY else 4.0) for k, v in my_rings.items()}
+    MW = max(x for rs in my_rings.values() for r in rs for x, _ in r) + 4
+    MH = max(y for rs in my_rings.values() for r in rs for _, y in r) + 4
+    my_gap = _MY(105.3, 0)[0]                 # the cut between the peninsula and the moved-in east
+
+    def my_dot(k):
+        pts = [pt for r in my_rings[k] for pt in r]
+        return (min(x for x, _ in pts) + max(x for x, _ in pts)) / 2, (min(y for _, y in pts) + max(y for _, y in pts)) / 2
+
+    def my_map(highlight=None, mini=False):
+        shapes = ""
+        for k, m in M.items():
+            if mini:
+                shapes += f'<path d="{my_mini[k]}"{" class=on" if highlight == k else ""}/>'
+                continue
+            tip = {"n": m["name"], "a": m["native"], "s": None if m["score"] is None else round(m["score"]),
+                   "people": pct(m["people"]), "jobs": pct(m["jobs"]), "biz": "–", "money": pct(m["money"])}
+            attrs = lens_attrs(m, lens_keys)
+            dot = ""
+            if k in MY_TINY:
+                cx, cy = my_dot(k)
+                dot = f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" class="dot" {attrs}/>'
+            shapes += (f'<a href="{U(m_url(m))}" data-tip=\'{esc(json.dumps(tip, ensure_ascii=False))}\' aria-label="{esc(m["name"])}, momentum {tip["s"]}">'
+                       f'<path d="{my_full[k]}" {attrs}/>{dot}</a>')
+        if mini:
+            return f'<svg class="map mini my" viewBox="0 0 {MW:.0f} {MH:.0f}" aria-hidden="true"><g>{shapes}</g></svg>'
+        return (f'<svg class="map my" data-lens="score" viewBox="0 0 {MW:.0f} {MH:.0f}" role="group" aria-label="Map of Malaysia by state">'
+                f'<line class="inset" x1="{my_gap:.1f}" y1="8" x2="{my_gap:.1f}" y2="{MH - 8:.1f}"/>'
+                f'<text class="inset-note" x="{my_gap + 8:.1f}" y="20" aria-hidden="true">East Malaysia, drawn closer than it is</text>'
+                f'<g class="units">{shapes}</g></svg>')
+
     # ── ranked lists (reorder with FLIP on lens change)
     def rank_list(units, url_of, name_of, native_of, lang_of, cls="", limit=None, extra=""):
         keys = ["score"] + lens_keys
@@ -887,6 +991,17 @@ def main():
             for i, v in enumerate(top, 1))
         sub = "Momentum across all four lenses" if k == "score" else f"{VN_DESC[k]}, {vlab[k][0]}"
         vn_lists += f'<div class="tlist" data-for="{k}"{"" if k == "score" else " hidden"}><p class="sub">{esc(sub)}</p><ol class="rlist plain">{rows}</ol></div>'
+    my_lists = ""
+    for k in ["score"] + lens_keys:
+        top = sorted([m for m in M.values() if m.get(k) is not None], key=lambda m: -m[k])[:8]
+        rows = "".join(
+            f'<li><a href="{U(m_url(m))}"><span class="pos">{i}</span><span class="nm">{esc(m["name"])}{native(m["native"], "ms")}</span>'
+            f'<span class="val {tone(m[k]) if k != "score" else ""}">{esc(f"{m[k]:.0f}" if k == "score" else pct(m[k]))}</span></a></li>'
+            for i, m in enumerate(top, 1))
+        sub = ("Momentum across people, jobs and money" if k == "score" else
+               "Malaysia publishes no open business series by state yet." if k == "biz" else f"{MY_DESC[k]}, {mlab[k][0]}")
+        my_lists += (f'<div class="tlist" data-for="{k}"{"" if k == "score" else " hidden"}><p class="sub">{esc(sub)}</p>'
+                     + (f'<ol class="rlist plain">{rows}</ol>' if rows else "") + "</div>")
     top_d = sorted([d for d in D if d.get("score") is not None], key=lambda d: d["rank"])[:10]
     leaving = sorted([d for d in D if d["dep_yoy"] is not None and d["in_latest"]], key=lambda d: d["dep_yoy"])[:5]
 
@@ -896,13 +1011,14 @@ def main():
 
     coverage_rows = ""
     for r in sorted(Rv, key=lambda r: r["name"]):
-        sub = {"THA": '<td class="yes">77 provinces, 264 districts</td>', "VNM": '<td class="yes">34 provinces (2025)</td>'}.get(r["iso"], '<td class="soon">Planned</td>')
+        sub = {"THA": '<td class="yes">77 provinces, 264 districts</td>', "VNM": '<td class="yes">34 provinces (2025)</td>',
+               "MYS": f'<td class="yes">16 states, {sum(len(m["districts"]) for m in M.values())} districts</td>'}.get(r["iso"], '<td class="soon">Planned</td>')
         coverage_rows += (f'<tr><th scope="row"><a href="{U(c_url(r))}">{esc(r["name"])}</a></th>'
                           + "".join(f'<td>{r[k + "_year"] or "–"}</td>' for k in lens_keys) + sub + "</tr>")
     home = f"""
 <section class="hero">
   <h1>See where people, jobs, businesses and money are moving across Southeast&nbsp;Asia.</h1>
-  <p class="lede">Eleven countries and {big(sea_pop)} people, ranked on four kinds of movement from public data. Thailand goes down to province and district, updated monthly from its central bank.</p>
+  <p class="lede">Eleven countries and {big(sea_pop)} people, ranked on four kinds of movement from public data. Thailand, Vietnam and Malaysia go further, province by province and state by state; Thailand down to district, updated monthly from its central bank.</p>
   <a class="btn ghost film-link" href="{U('/film/')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg><span>Watch the 40-second film</span></a>
 </section>
 <section class="atlas" id="atlas">
@@ -939,6 +1055,17 @@ def main():
   <div class="split-body">
     <div class="split-map">{lens_tabs(label="Vietnam lens")}<a class="skip-map" href="#after-map-3">Skip the map</a><div class="mapframe">{vn_map()}</div><span id="after-map-3" tabindex="-1"></span>{legend("Vietnam's 34 provinces")}</div>
     <div class="split-list">{vn_lists}</div>
+  </div>
+</section>
+<section class="split reveal" id="malaysia">
+  <div class="split-head">
+    <h2>Inside Malaysia</h2>
+    <p>The 13 states and 3 federal territories. Population to {mlab['people'][1]}, jobs to {mlab['jobs'][1]} and real GDP to {mlab['money'][1]}, from the Department of Statistics. There is no open business series by state yet, so that lens is left blank.</p>
+    <a class="btn" href="{U('/malaysia/')}">Open the Malaysia explorer</a>
+  </div>
+  <div class="split-body wide">
+    <div class="split-map">{lens_tabs(label="Malaysia lens")}<a class="skip-map" href="#after-map-6">Skip the map</a><div class="mapframe">{my_map()}</div><span id="after-map-6" tabindex="-1"></span>{legend("Malaysia's 16 states")}</div>
+    <div class="split-list">{my_lists}</div>
   </div>
 </section>
 <section class="movers reveal">
@@ -1007,9 +1134,13 @@ def main():
             deep = (f'<section class="callout reveal"><h2>Go deeper: 34 provinces</h2>'
                     f'<p>Population, jobs, new businesses and enterprise revenue for every province on the 2025 boundaries, with the 63 former provinces underneath.</p>'
                     f'<a class="btn" href="{U("/vietnam/")}">Open the Vietnam explorer</a></section>')
+        elif r["iso"] == "MYS":
+            deep = (f'<section class="callout reveal"><h2>Go deeper: 16 states</h2>'
+                    f'<p>Population, quarterly employment and real GDP for every state and federal territory, with population and jobs for each of their districts.</p>'
+                    f'<a class="btn" href="{U("/malaysia/")}">Open the Malaysia explorer</a></section>')
         else:
             deep = (f'<section class="callout quiet reveal"><h2>Subnational data for {esc(r["name"])}</h2>'
-                    f'<p>Not yet. Country-level figures above are from the World Bank. Provinces arrive country by country: Thailand and Vietnam so far, Malaysia next.</p></section>')
+                    f'<p>Not yet. Country-level figures above are from the World Bank. Provinces arrive country by country: Thailand, Vietnam and Malaysia so far.</p></section>')
         others = "".join(f'<li><a href="{U(c_url(o))}">{esc(o["name"])}</a></li>' for o in sorted(Rv, key=lambda o: o["name"]) if o is not r)
         body = f"""
 <section class="hero detail">
@@ -1290,6 +1421,127 @@ def main():
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/"), (v["name"], path)],
                          watch={"id": f"v-{slug_}", "name": f"{v['name']}, Vietnam", "url": U(path)}))
 
+    # ── MALAYSIA explorer
+    mk = lens_keys
+    mrows = ""
+    for m in sorted(M.values(), key=lambda m: (m["score"] is None, -(m["score"] or 0))):
+        mrows += (f'<tr><td class="num pos">{m.get("rank") or "–"}</td><th scope="row"><a href="{U(m_url(m))}">{esc(m["name"])}</a>{native(m["native"], "ms")}</th>'
+                  f'<td data-v="{"" if m["score"] is None else round(m["score"], 2)}">{score_pill(m["score"])}</td>'
+                  + value_cell(m["people"]) + value_cell(m["jobs"]) + value_cell(m["money"]) + "</tr>")
+    mhead = ('<th scope="col" class="num">#</th><th scope="col">State</th><th scope="col"><button data-k="2">Momentum</button></th>'
+             '<th scope="col" class="num"><button data-k="3">People</button></th><th scope="col" class="num"><button data-k="4">Jobs</button></th>'
+             '<th scope="col" class="num"><button data-k="5">Money</button></th>')
+    all_md = [(m, d) for m in M.values() for d in m["districts"] if len(m["districts"]) > 1 and d["people"] is not None]
+
+    def mdrow(m, d, val):
+        return (f'<li><a href="{U(m_url(m))}#districts"><span class="nm">{esc(d["name"])}<small>{esc(m["name"])}</small></span>'
+                f'<span class="val {tone(val)}">{pct(val)}</span></a></li>')
+    grow = sorted(all_md, key=lambda x: -x[1]["people"])[:10]
+    shrink = sorted(all_md, key=lambda x: x[1]["people"])[:5]
+    explorer = f"""
+<section class="hero">
+  <h1>Malaysia, state by state</h1>
+  <p class="lede">The 13 states and 3 federal territories: where people are settling, where jobs are being added and where the economy is growing. Each lens has its own latest date, shown with the number.</p>
+</section>
+<section class="split flush">
+  <div class="split-body wide">
+    <div class="split-map"><div class="maptools">{lens_tabs(label="Malaysia lens")}{view_toggle()}</div><a class="skip-map" href="#after-map-7">Skip the map</a><div class="mapframe">{my_map()}</div><span id="after-map-7" tabindex="-1"></span>{legend("Malaysia's 16 states")}
+      <p class="note">Sabah, Sarawak and Labuan are drawn closer to the peninsula than they are. Kuala Lumpur, Putrajaya and Labuan carry a dot so they can be found.</p></div>
+    <div class="split-list">
+      <dl class="asof">{"".join(f'<div>{icon(k)}<dt>{esc(LENS[k][0])}</dt><dd>{esc(MY_DESC[k])}<br><small>{esc(mlab[k][0])}</small></dd></div>' for k in mk)}</dl>
+    </div>
+  </div>
+</section>
+<section class="reveal">
+  <h2>All 16 states and federal territories</h2>
+  <p class="sub">Select a column heading to sort. Momentum is the average rank across people, jobs and money.</p>
+  <div class="tablewrap"><table class="rank" data-sortable><thead><tr>{mhead}</tr></thead><tbody>{mrows}</tbody></table></div>
+</section>
+<section class="movers reveal">
+  <div><h2>Districts growing fastest</h2><p class="sub">Population, {myears['district_pop'] - 1} to {myears['district_pop']} (estimates)</p>
+    <ol class="dlist">{"".join(mdrow(m, d, d["people"]) for m, d in grow)}</ol></div>
+  <div><h2>Districts losing people</h2><p class="sub">Same period, all {len(all_md)} districts</p>
+    <ol class="dlist">{"".join(mdrow(m, d, d["people"]) for m, d in shrink)}</ol></div>
+</section>
+"""
+    write("/malaysia/", page(U("/malaysia/"), "Malaysia's states ranked by population, jobs and GDP growth | Where Money Moves",
+                             "All 13 Malaysian states and 3 federal territories ranked on population, employment and real GDP growth, with every district's population.",
+                             explorer, meta, crumbs=[("Southeast Asia", "/"), ("Malaysia", "/malaysia/")], extra_head=import_map()))
+
+    # ── MALAYSIA state pages
+    sec_names = my["sector_names"]
+    for slug_, m in M.items():
+        ft = slug_ in ("kuala-lumpur", "putrajaya", "labuan")
+        kind = "federal territory" if ft else "state"
+        g = mlab["money"][1]
+        biggest = max(m["sector_share"], key=lambda c: m["sector_share"][c])
+        sec_rows = [(f"{sec_names[c]} ({m['sector_share'][c] * 100:.0f}% of output)", pct(m["sectors"][c]))
+                    for c in sorted(m["sector_share"], key=lambda c: -m["sector_share"][c]) if m["sector_share"][c] >= 0.005]
+        panels = (
+            lens_panel("people", pct(m["people"]), f"population, {mlab['people'][0]}", f"#{m.get('people_rank', '–')} of 16",
+                       [("Population", f"{m['pop']:,.0f}"), ("Five-year change", pct(m["people_5y"]))],
+                       chart([(y, v * 1000) for y, v in m["pop_series"] if y >= 2020], "Population", x_label=str, every=1, kind="dots"),
+                       "DOSM's yearly estimates, which count everyone living in the state, including non-citizens. "
+                       "Shown from 2020: the 2020 Census reset the base, so earlier years do not line up.") +
+            lens_panel("jobs", pct(m["jobs"]), f"employed persons, {mlab['jobs'][0]}", f"#{m.get('jobs_rank', '–')} of 16",
+                       [("Employed persons", f"{m['employed']:,.0f}"),
+                        ("Unemployment rate", f"{m['u_rate']:.1f}%" + (f" (was {m['u_rate_prev']:.1f}%)" if m["u_rate_prev"] is not None else "")),
+                        ("Labour force participation", f"{m['p_rate']:.1f}%")],
+                       chart([(q, v * 1000) for q, v in m["emp_series"] if q >= "2019"], "Employed persons, quarterly",
+                             x_label=lambda q: q[:4], every=4, kind="line"),
+                       "Labour Force Survey, quarterly. Compared with the same quarter a year earlier, so seasons cancel out.") +
+            lens_panel("biz", "–", "no open state series yet", "Not ranked", [], "",
+                       "DOSM publishes no open count of businesses or new registrations by state. Momentum for Malaysia averages the other three lenses; a proxy will be labelled as one when it arrives.") +
+            lens_panel("money", pct(m["money"]), f"real GDP, {mlab['money'][0]}", f"#{m.get('money_rank', '–')} of 16",
+                       [("GDP", f"RM {m['gdp'] / 1000:,.1f} billion ({g}, 2015 prices)"),
+                        ("Per person", f"RM {m['gdp_pc']:,.0f}" if m["gdp_pc"] else "–"), ("Five-year change", pct(m["gdp_5y"]))] + sec_rows,
+                       chart([(y, v * 1e6) for y, v in m["gdp_series"]], "Real GDP (RM, constant 2015 prices)", unit="RM", x_label=str, every=2, kind="dots"),
+                       f"Oil and gas output not tied to any state (RM {float(my['supra_gdp'][str(g)]) / 1000:,.0f} billion in {g}) is left out of every state.")
+        )
+        multi = len(m["districts"]) > 1
+        dtable = ""
+        if multi:
+            ey = myears["district_emp"]
+            rows = ""
+            for d in sorted(m["districts"], key=lambda d: -d["pop"]):
+                rows += (f'<tr><th scope="row">{esc(d["name"])}</th><td class="num" data-v="{d["pop"]:.0f}">{d["pop"]:,.0f}</td>'
+                         + value_cell(d["people"]) + value_cell(d["people_5y"])
+                         + (f'<td class="num" data-v="{d["employed"]:.0f}">{d["employed"]:,.0f}</td>' if d["employed"] else '<td class="num" data-v="">–</td>')
+                         + value_cell(d["jobs"])
+                         + (f'<td class="num" data-v="{d["u_rate"]}">{d["u_rate"]:.1f}%</td>' if d["u_rate"] is not None else '<td class="num" data-v="">–</td>')
+                         + "</tr>")
+            dtable = (f'<section class="reveal" id="districts"><h2>Districts</h2>'
+                      f'<p class="sub">Population {myears["district_pop"] - 1} to {myears["district_pop"]} (estimates); employment and unemployment {ey - 1} to {ey}, from the yearly Labour Force Survey.</p>'
+                      f'<div class="tablewrap"><table class="rank" data-sortable><thead><tr><th scope="col">District</th>'
+                      f'<th scope="col" class="num"><button data-k="1">Population</button></th><th scope="col" class="num"><button data-k="2">People</button></th>'
+                      f'<th scope="col" class="num"><button data-k="3">Five years</button></th><th scope="col" class="num"><button data-k="4">Employed</button></th>'
+                      f'<th scope="col" class="num"><button data-k="5">Jobs</button></th><th scope="col" class="num"><button data-k="6">Unemployment</button></th>'
+                      f'</tr></thead><tbody>{rows}</tbody></table></div></section>')
+        extra = (f"Its economy grew {pct(m['money'])} in real terms in {g}; {sec_names[biggest].lower()}, the largest sector at "
+                 f"{m['sector_share'][biggest] * 100:.0f}% of output, grew {pct(m['sectors'][biggest])}.") if m["money"] is not None else ""
+        if multi:
+            fast = max((d for d in m["districts"] if d["people"] is not None), key=lambda d: d["people"])
+            extra += f" Its fastest-growing district is {fast['name']} ({pct(fast['people'])} population in a year)."
+        if m["pop"] < 200000:
+            extra += " With so few people, single-year changes swing widely; read them with care."
+        summary = brief(m, "my", 16, "Malaysian states and federal territories", extra.strip())
+        near = sorted([o for o in M.values() if o is not m], key=lambda o: -(o["score"] or 0))[:8]
+        body = f"""
+<section class="hero detail">
+  <div><h1>{esc(m['name'])} {native(m['native'], 'ms')}</h1>
+  <p class="lede">{esc(summary)}</p><p class="sub formed">A {kind} of Malaysia.</p></div>
+  {my_map(highlight=slug_, mini=True)}
+</section>
+<div class="panels">{panels}</div>
+{dtable}
+<nav class="others" aria-label="Other states"><h2>Other states with high momentum</h2><ul class="chips">{"".join(f'<li><a href="{U(m_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
+"""
+        path = m_url(m)
+        write(path, page(U(path), f"{m['name']}, Malaysia: population, jobs and GDP growth | Where Money Moves",
+                         first_sentences(summary), body, meta,
+                         crumbs=[("Southeast Asia", "/"), ("Malaysia", "/malaysia/"), (m["name"], path)],
+                         watch={"id": f"m-{slug_}", "name": f"{m['name']}, Malaysia", "url": U(path)}))
+
     # ── FILM: "Where the money moved", drawn in code (static/film.js). Every caption is computed here from the data,
     # so the film stays true when a new month arrives; the beats pick their subjects (the province that added the
     # most jobs, the district first on money momentum) rather than naming them by hand.
@@ -1437,9 +1689,23 @@ def main():
         srt = sorted([v for v in V.values() if v[k] is not None], key=lambda v: -v[k])
         ranking_page(key, title, f"{VN_DESC[k]}, {vlab[k][0]}.", vhead, "".join(vrow(v, i) for i, v in enumerate(srt, 1)))
 
+    def mrow(m, pos):
+        return (f'<tr><td class="num pos">{pos}</td><th scope="row"><a href="{U(m_url(m))}">{esc(m["name"])}</a>{native(m["native"], "ms")}</th>'
+                f'<td data-v="{round(m["score"], 2) if m["score"] is not None else ""}">{score_pill(m["score"])}</td>'
+                + value_cell(m["people"]) + value_cell(m["jobs"]) + value_cell(m["money"]) + "</tr>")
+    ms = sorted(M.values(), key=lambda m: (m["score"] is None, -(m["score"] or 0)))
+    ranking_page("malaysia-states", "Malaysian states by momentum",
+                 "All 13 states and 3 federal territories, average rank across population, employment and real GDP growth.",
+                 mhead, "".join(mrow(m, m.get("rank") or "–") for m in ms))
+    for k, key, title in (("people", "malaysia-population-growth", "Malaysian states by population growth"),
+                          ("jobs", "malaysia-job-growth", "Malaysian states by job growth"),
+                          ("money", "malaysia-gdp-growth", "Malaysian states by real GDP growth")):
+        srt = sorted([m for m in M.values() if m[k] is not None], key=lambda m: -m[k])
+        ranking_page(key, title, f"{MY_DESC[k]}, {mlab[k][0]}.", mhead, "".join(mrow(m, i) for i, m in enumerate(srt, 1)))
+
     body = ('<section class="hero"><h1>Rankings</h1><p class="lede">Every list on the site, as a sortable table.</p></section><ul class="rk-index">'
             + "".join(f'<li class="reveal"><a href="{U(p)}"><b>{esc(t)}</b><span>{esc(d)}</span></a></li>' for p, t, d in rk_index) + "</ul>")
-    write("/rankings/", page(U("/rankings/"), "Rankings | Where Money Moves", "Sortable rankings of Southeast Asian countries, Thai provinces and districts.",
+    write("/rankings/", page(U("/rankings/"), "Rankings | Where Money Moves", "Sortable rankings of Southeast Asian countries, Thai provinces and districts, Vietnamese provinces and Malaysian states.",
                              body, meta, crumbs=[("Southeast Asia", "/"), ("Rankings", "/rankings/")]))
 
     # ── COMPARE (client-rendered from compare.json)
@@ -1456,6 +1722,9 @@ def main():
     for v in V.values():
         cmp[f"v-{v['slug']}"] = {"n": f"{v['name']}, Vietnam", "a": v["native"], "u": U(v_url(v)), "k": "Vietnamese province", "s": v["score"],
                                  **{k: v[k] for k in vk}, **{k + "y": str(vlab[k][1]) for k in vk}}
+    for m in M.values():
+        cmp[f"m-{m['slug']}"] = {"n": f"{m['name']}, Malaysia", "a": m["native"], "u": U(m_url(m)), "k": "Malaysian state", "s": m["score"],
+                                 **{k: m[k] for k in lens_keys}, **{k + "y": str(mlab[k][1] or "") for k in lens_keys}}
     (OUT / "assets" / "compare.json").write_text(json.dumps(cmp, ensure_ascii=False, separators=(",", ":")))
     body = """
 <section class="hero"><h1>Compare</h1><p class="lede">Places you watch appear here side by side. Select Watch on any country, province or district page.</p>
@@ -1477,6 +1746,8 @@ def main():
          f"People: registered population, Department of Provincial Administration, {base_of['people']} to {asof['people']}. Jobs: employees insured under Section 33 of the Social Security Act, {base_of['jobs']} to {asof['jobs']}. Businesses: employers registered with the Social Security Office, the same period. Money: commercial-bank deposits, Bank of Thailand district table, {base_of['money']} to {asof['money']}."),
         ("The four lenses for Vietnam",
          f"From the National Statistics Office (formerly GSO). People: average population, {vlab['people'][0]}, with net migration per 1,000 residents alongside. Jobs: employed workers, {vlab['jobs'][0]}. Businesses: newly registered enterprises, {vlab['biz'][0]}. Money: net revenue of active enterprises, {vlab['money'][0]}, nominal. The latest year is often preliminary."),
+        ("The lenses for Malaysia",
+         f"From the Department of Statistics Malaysia (OpenDOSM). People: population estimates, {mlab['people'][0]}. Jobs: employed persons from the quarterly Labour Force Survey, {mlab['jobs'][0]}, so seasons cancel out. Money: real GDP at constant 2015 prices, {mlab['money'][0]}; output that cannot be placed in a state, mostly oil and gas, is left out of every state. Businesses: DOSM publishes no open business count by state, so the lens is blank and Momentum averages the other three. State pages list every district's population and, where the survey covers it, employment. East Malaysia is drawn closer to the peninsula than it is."),
         ("Vietnam's 2025 merger",
          "On 1 July 2025 Vietnam's 63 provinces became 34. Every merger joined whole provinces, so the statistics, still published for the 63, add up exactly into the new ones; we check that the 63 sum to the national total every year from 2010. Maps are rebuilt from the 63 former shapes, and the old borders are drawn dashed. Far-offshore archipelagos are not drawn at this scale."),
         ("Proxies, and why",
@@ -1500,6 +1771,9 @@ def main():
            + [{"n": v["name"], "a": v["native"], "u": U(v_url(v)), "k": "Province"} for v in V.values()]
            + [{"n": f, "a": f"now part of {v['name']}", "u": U(v_url(v)), "k": "Former province"}
               for v in V.values() if len(v["former"]) > 1 for f in v["former"] if f != v["native"]]
+           + [{"n": m["name"], "a": m["native"] or "Malaysia", "u": U(m_url(m)), "k": "State"} for m in M.values()]
+           + [{"n": d["name"], "a": f"{m['name']}, Malaysia", "u": U(m_url(m)) + "#districts", "k": "District"}
+              for m in M.values() if len(m["districts"]) > 1 for d in m["districts"]]
            + [{"n": t, "a": "", "u": U(p), "k": "Ranking"} for p, t, _ in rk_index]
            + [{"n": "Where the money moved", "a": "a 43-second film", "u": U("/film/"), "k": "Film"}])
     (OUT / "assets" / "search.json").write_text(json.dumps(idx, ensure_ascii=False, separators=(",", ":")))
@@ -1517,7 +1791,7 @@ def main():
     (OUT / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                                      + "".join(f"<url><loc>{SITE_URL}{U(p)}</loc><lastmod>{meta['built']}</lastmod></url>\n" for p in pages) + "</urlset>\n")
     size = sum(f.stat().st_size for f in OUT.rglob("*") if f.is_file())
-    print(f"site/  {len(pages)} pages  {size/1e6:.1f}MB  region 11 · provinces {len(T)} · districts {len(D)}")
+    print(f"site/  {len(pages)} pages  {size/1e6:.1f}MB  region 11 · provinces {len(T)} · districts {len(D)} · vietnam {len(V)} · malaysia {len(M)}")
 
 
 if __name__ == "__main__":
