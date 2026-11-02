@@ -474,3 +474,18 @@ dialog#cmdk[open] .cmdk-box { animation: pop .18s var(--ease); }
 .strip circle.o.hot { fill: var(--muted); }
 .strip circle.me { fill: var(--ink); stroke: var(--paper); stroke-width: 2.5; }
 .strip text { font: 500 13px var(--body); fill: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Method: the pipeline figure. Ink is currentColor (follows the theme); only the gate carries a hue */
+.pipeline { margin: 0; display: grid; gap: 10px; }
+.pipeline .scroll { overflow-x: auto; }
+.pipeline svg { display: block; width: 100%; min-width: 720px; height: auto; color: var(--ink); }
+.pipeline .n, .pipeline .src { fill: var(--surface); stroke: currentColor; stroke-opacity: .35; stroke-width: 1.2; }
+.pipeline .n.gate { stroke: var(--current); stroke-opacity: 1; stroke-width: 2.2; }
+.pipeline .n.stop { stroke-dasharray: 4 4; }
+.pipeline .t { font: 650 15px var(--display); fill: currentColor; }
+.pipeline .s { font: 400 12.5px var(--body); fill: var(--muted); }
+.pipeline .s.ink { fill: currentColor; }
+.pipeline .l { font: 500 12px var(--body); fill: var(--muted); }
+.pipeline .a { stroke: currentColor; stroke-opacity: .55; stroke-width: 1.3; fill: none; }
+.pipeline .a.fail { stroke-dasharray: 4 4; }
+.pipeline figcaption { font-size: 14px; color: var(--muted); max-width: 70ch; }

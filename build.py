@@ -2196,8 +2196,42 @@ def main():
         ("Updates",
          "Bank data monthly, social security yearly (December), registered population yearly, World Bank yearly. The pipeline stops rather than publish numbers it cannot verify: every source has a structure fingerprint and a total cross-check."),
     ]
+    # the pipeline in one figure: where each number comes from, the gate it must pass, and what happens when it fails
+    def node(x, y, w, title, sub, cls=""):
+        return (f'<rect class="n{cls}" x="{x}" y="{y}" width="{w}" height="52" rx="10"/>'
+                f'<text class="t" x="{x + w / 2}" y="{y + 22}" text-anchor="middle">{esc(title)}</text>'
+                f'<text class="s" x="{x + w / 2}" y="{y + 40}" text-anchor="middle">{esc(sub)}</text>')
+
+    def arrow(x1, y1, x2, y2, label, lx=None, ly=None, cls=""):
+        lx = (x1 + x2) / 2 if lx is None else lx
+        ly = min(y1, y2) - 8 if ly is None else ly
+        return (f'<line class="a{cls}" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" marker-end="url(#wmm-arrow)"/>'
+                f'<text class="l" x="{lx}" y="{ly}" text-anchor="middle">{esc(label)}</text>')
+    srcs = ["World Bank, 11 countries", "BOT, SSO, DOPA: Thailand", "NSO: Vietnam", "DOSM: Malaysia", "PSA: Philippines"]
+    flow = "".join(f'<rect class="src" x="0" y="{40 + i * 46}" width="196" height="36" rx="8"/>'
+                   f'<text class="s ink" x="14" y="{63 + i * 46}">{esc(t)}</text>'
+                   f'<line class="a" x1="196" y1="{58 + i * 46}" x2="236" y2="176"/>' for i, t in enumerate(srcs))
+    flow += (node(240, 150, 150, "Monthly refresh", "on the 15th")
+             + node(440, 150, 150, "Checks", "columns and totals", " gate")
+             + node(415, 26, 200, "Stop and report", "last good data stays live", " stop")
+             + node(640, 150, 150, "Data pull request", "reviewed, then merged")
+             + node(840, 150, 150, "Rank in country", "each lens a percentile")
+             + node(840, 274, 150, "Momentum", "mean of lenses present")
+             + arrow(390, 176, 436, 176, "parse")
+             + arrow(515, 150, 515, 82, "fails", 540, 120, " fail")
+             + arrow(590, 176, 636, 176, "passes")
+             + arrow(790, 176, 836, 176, "build")
+             + arrow(915, 202, 915, 270, "average", 950, 242))
+    pipeline = (f'<figure class="pipeline"><div class="scroll"><svg viewBox="0 0 1000 340" role="img" '
+                f'aria-label="Each source is fetched monthly and must pass column and total checks; if it fails the run stops and '
+                f'the last good data stays live, if it passes a reviewed pull request publishes it; then every lens is ranked as a '
+                f'percentile within its own country and Momentum is the mean of the lenses present.">'
+                f'<defs><marker id="wmm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
+                f'<path d="M0 0 10 5 0 10z" fill="currentColor"/></marker></defs>{flow}</svg></div>'
+                f'<figcaption>A number reaches the site only through the checks: when a source changes shape or its parts stop adding '
+                f'up to its total, the run stops and the last verified data stays published. Ranks never cross a border.</figcaption></figure>')
     body = ('<section class="hero"><h1>How the numbers work</h1><p class="lede">Public data only. Every figure on the site comes from one of the sources below, unchanged except for the arithmetic described here.</p></section>'
-            + "".join(f'<section class="prose reveal"><h2>{esc(h)}</h2><p>{esc(b)}</p></section>' for h, b in sections))
+            + pipeline + "".join(f'<section class="prose reveal"><h2>{esc(h)}</h2><p>{esc(b)}</p></section>' for h, b in sections))
     write("/about/", page(U("/about/"), "Method and sources | Where Money Moves", "How Where Money Moves measures people, jobs, businesses and money across Southeast Asia.",
                           body, meta, crumbs=[("Southeast Asia", "/"), ("Method", "/about/")]))
 
