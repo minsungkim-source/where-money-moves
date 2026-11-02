@@ -239,6 +239,26 @@
     svg.addEventListener("pointerleave", clear);
   });
 
+  // ── rank history: a hairline snaps to the nearest period; the tooltip gives this place's rank there
+  $$(".rankh svg").forEach(function (svg) {
+    var pts = JSON.parse(svg.dataset.pts), xs = svg.dataset.x.split(",").map(Number), tipEl = $(".tip");
+    var hair = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    hair.setAttribute("class", "hair"); hair.setAttribute("y1", 10); hair.setAttribute("y2", svg.viewBox.baseVal.height - 24);
+    function clear() { hair.remove(); if (tipEl) tipEl.hidden = true; }
+    svg.addEventListener("pointermove", function (e) {
+      var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+      var x = pt.matrixTransform(svg.getScreenCTM().inverse()).x, i = 0;
+      xs.forEach(function (v, j) { if (Math.abs(v - x) < Math.abs(xs[i] - x)) i = j; });
+      hair.setAttribute("x1", xs[i]); hair.setAttribute("x2", xs[i]); svg.appendChild(hair);
+      var b = document.createElement("b"); b.textContent = "#" + pts[i][1] + " of " + pts[i][2];
+      var n = document.createElement("span"); n.textContent = pts[i][0];
+      tipEl.replaceChildren(b, n); tipEl.hidden = false;
+      tipEl.style.left = Math.min(innerWidth - 110, Math.max(110, e.clientX)) + "px";
+      tipEl.style.top = e.clientY + "px";
+    });
+    svg.addEventListener("pointerleave", clear);
+  });
+
   // ── map tooltip (pointer) and tap sheet (touch)
   var tip = $(".tip"), canHover = matchMedia("(hover: hover)").matches;
   function tipHTML(d, lens) {
@@ -456,11 +476,17 @@
         });
         head.appendChild(copy);
         wrap.appendChild(head);
+        // the dumbbells' two marks, said once for every row below
+        var key = doc.createElement("p"); key.className = "cmp-key";
+        key.innerHTML = '<span><i class="was"></i>a year earlier</span><span><i class="now"></i>latest</span>';
+        wrap.appendChild(key);
         var rows = [["score", "Momentum score"]].concat(lenses);
         rows.forEach(function (lr) {
           var k = lr[0], vals = list.map(function (id) { return all[id][k === "score" ? "s" : k]; });
           if (vals.every(function (v) { return v == null; })) return;
-          var max = Math.max.apply(null, vals.map(function (v) { return Math.abs(v || 0); })) || 1;
+          var prevs = list.map(function (id) { return k === "score" ? null : all[id][k + "p"]; });
+          var max = Math.max.apply(null, vals.concat(prevs).map(function (v) { return Math.abs(v || 0); })) || 1;
+          var at = function (v) { return 50 + v / max * 46; };            // % across the track, zero in the middle
           var row = doc.createElement("section"); row.className = "cmp-row" + (k === "score" ? " score" : "");
           var h = doc.createElement("h3"); h.textContent = lr[1]; row.appendChild(h);
           list.forEach(function (id, i) {
@@ -474,11 +500,25 @@
             if (v == null) { num.textContent = "–"; }
             else if (k === "score") { f.style.left = "0"; f.style.width = v + "%"; num.textContent = Math.round(v); }
             else {
-              var w = Math.abs(v) / max * 50;
-              f.style.left = (v < 0 ? 50 - w : 50) + "%"; f.style.width = w + "%";
-              num.textContent = (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(1) + "%";
+              // a dumbbell: hollow = a year earlier, solid = latest; the line between them is the change in pace
+              var fmt = function (x) { return (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1) + "%"; };
+              var p = prevs[i];
+              tr.classList.add("bell"); f = null;
+              if (p != null) {
+                var seg = doc.createElement("span"); seg.className = "seg";
+                seg.style.left = Math.min(at(p), at(v)) + "%"; seg.style.width = Math.abs(at(v) - at(p)) + "%";
+                var was = doc.createElement("span"); was.className = "dot was"; was.style.left = at(p) + "%";
+                was.title = "A year earlier (" + (it[k + "py"] || "") + "): " + fmt(p);
+                tr.appendChild(seg); tr.appendChild(was);
+              }
+              var now = doc.createElement("span"); now.className = "dot now"; now.style.left = at(v) + "%";
+              now.title = "Latest (" + (it[k + "y"] || "") + "): " + fmt(v);
+              tr.appendChild(now);
+              num.textContent = fmt(v);
+              if (p != null) { var ws = doc.createElement("small"); ws.textContent = "was " + fmt(p); num.appendChild(ws); }
             }
-            tr.appendChild(f); line.appendChild(nm); line.appendChild(tr); line.appendChild(num); row.appendChild(line);
+            if (f) tr.appendChild(f);
+            line.appendChild(nm); line.appendChild(tr); line.appendChild(num); row.appendChild(line);
           });
           wrap.appendChild(row);
         });

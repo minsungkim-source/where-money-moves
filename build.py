@@ -118,6 +118,68 @@ def strip(points, mine, caption) -> str:
             f'</svg></figure>')
 
 
+def growth_series(levels, lag=1, keep=None):
+    """[(period, level)] → {period: growth on the period `lag` steps earlier}; `keep` thins a long series to every
+    nth period counted back from the latest, so monthly data reads as quarters."""
+    pts = [(p_, v) for p_, v in levels if v is not None]
+    out = {pts[i][0]: growth(pts[i][1], pts[i - lag][1]) for i in range(lag, len(pts))}
+    out = {k: v for k, v in out.items() if v is not None}
+    if keep:
+        ks = sorted(out)
+        out = {k: out[k] for k in ks[::-1][::keep]}
+    return out
+
+
+def rank_chart(by_unit, mine, caption, label=str, recent=10) -> str:
+    """How one place's rank on a lens has moved, among its whole layer: every place a faint line (rank 1 at the top),
+    this one in current-teal with its latest rank at the end. Ranks are recomputed each period among the places with a
+    figure that period. app.js reads data-pts for the tooltip."""
+    periods = sorted({p_ for ser in by_unit.values() for p_ in ser})[-recent:]
+    if mine not in by_unit or len(periods) < 3:
+        return ""
+    ranks = {u: {} for u in by_unit}
+    count = {}
+    for p_ in periods:
+        have = sorted((u for u in by_unit if p_ in by_unit[u]), key=lambda u: -by_unit[u][p_])
+        count[p_] = len(have)
+        for i, u in enumerate(have, 1):
+            ranks[u][p_] = i
+    mp = [p_ for p_ in periods if p_ in ranks[mine]]
+    if len(mp) < 3:
+        return ""
+    W, H, L, R, T, B = 420, 190, 40, 44, 14, 26
+    n = max(count.values())
+    xs = lambda i: L + i * (W - L - R) / (len(periods) - 1)
+    ys = lambda rk: T + (rk - 1) / max(1, n - 1) * (H - T - B)
+    def line(u, cls):
+        d, prev = "", False
+        for i, p_ in enumerate(periods):
+            rk = ranks[u].get(p_)
+            if rk is None:
+                prev = False
+                continue
+            d += ("L" if prev else "M") + f"{xs(i):.1f},{ys(rk):.1f}"
+            prev = True
+        return f'<path class="{cls}" d="{d}"/>' if d.count("L") else ""
+    rest = "".join(line(u, "o") for u in by_unit if u != mine)
+    last_i = max(i for i, p_ in enumerate(periods) if p_ in ranks[mine])
+    last_rk = ranks[mine][periods[last_i]]
+    every = max(1, len(periods) // 4)
+    last = len(periods) - 1
+    ticks = "".join(f'<text x="{xs(i):.1f}" y="{H - 6}" text-anchor="middle">{esc(label(p_))}</text>'
+                    for i, p_ in enumerate(periods) if i == last or (i % every == 0 and last - i >= max(2, every * 0.75)))
+    pts = [[label(p_), ranks[mine][p_], count[p_]] for p_ in periods if p_ in ranks[mine]]
+    first_rk = ranks[mine][mp[0]]
+    return (f'<figure class="rankh"><figcaption>{esc(caption)}</figcaption>'
+            f'<svg viewBox="0 0 {W} {H}" role="img" data-pts=\'{esc(json.dumps(pts))}\' data-x="{",".join(f"{xs(i):.1f}" for i, p_ in enumerate(periods) if p_ in ranks[mine])}" '
+            f'aria-label="{esc(f"{mine}: ranked {ordinal(first_rk)} in {label(mp[0])}, {ordinal(last_rk)} in {label(mp[-1])}, of {count[mp[-1]]}")}">'
+            f'<g class="grid"><line x1="{L}" x2="{W - R}" y1="{ys(1):.1f}" y2="{ys(1):.1f}"/><line x1="{L}" x2="{W - R}" y1="{ys(n):.1f}" y2="{ys(n):.1f}"/>'
+            f'<text x="{L - 8}" y="{ys(1) + 4:.1f}" text-anchor="end">1st</text><text x="{L - 8}" y="{ys(n) + 4:.1f}" text-anchor="end">{n}th</text></g>'
+            f'<g class="ticks">{ticks}</g><g class="rest">{rest}</g>{line(mine, "me")}'
+            f'<circle class="end" cx="{xs(last_i):.1f}" cy="{ys(last_rk):.1f}" r="4.5"/>'
+            f'<text class="endl" x="{xs(last_i) + 9:.1f}" y="{ys(last_rk) + 4:.1f}">#{last_rk}</text></svg></figure>')
+
+
 def big(x, unit="") -> str:
     if x is None:
         return "–"
@@ -895,6 +957,58 @@ def main():
     M, mlab, myears = malaysia_model(my)
     H, hlab = philippines_model(ph)
 
+    # ── growth per period, per place, per lens: rank histories on detail pages, "the period before" on Compare
+    def prov_money(ds):
+        """Province deposits, year on year each month, over the districts reported in both months; every 3rd month
+        counted back from the latest bank month, the same calendar for every province."""
+        by_m = {}
+        for d in ds:
+            for row in d["series"]:
+                if row[1] is not None:
+                    by_m.setdefault(row[0], {})[d["id"]] = row[1]
+        ms = sorted(by_m)
+        out = {}
+        for i in range(12, len(ms)):
+            a, b = by_m[ms[i]], by_m[ms[i - 12]]
+            both = [k for k in a if k in b]
+            if both:
+                out[ms[i]] = sum(a[k] for k in both) / sum(b[k] for k in both) - 1
+        ly, lm = (int(x) for x in latest.split("-"))
+        return {k: g for k, g in out.items() if ((ly - int(k[:4])) * 12 + lm - int(k[5:])) % 3 == 0}
+    lens_keys = [k for k, *_ in LENSES]
+    GR = {
+        "region": {k: {r["name"]: growth_series(r["series"][k]) for r in R.values()} for k in lens_keys},
+        "th": {"people": {t["name"]: growth_series(t["pop_series"]) for t in T.values()},
+               "jobs": {t["name"]: growth_series(t["ins_series"]) for t in T.values()},
+               "biz": {t["name"]: growth_series(t["ent_series"]) for t in T.values()},
+               "money": {t["name"]: prov_money(by_prov.get(tis, [])) for tis, t in T.items()}},
+        "vn": {k: {v["name"]: growth_series(v["series"][k]) for v in V.values()} for k in lens_keys},
+        "my": {"people": {m["name"]: {y: g for y, g in growth_series(m["pop_series"]).items() if y >= 2021} for m in M.values()},
+               "jobs": {m["name"]: growth_series(m["emp_series"], lag=4) for m in M.values()},
+               "money": {m["name"]: growth_series(m["gdp_series"]) for m in M.values()}},
+        "ph": {"money": {h["name"]: growth_series(h["gdp_series"]) for h in H.values()}},
+    }
+    PERIOD_LABEL = {"th": {"money": month_label}, "my": {"jobs": qlabel}}
+
+    def rank_section(layer, name, group, keys):
+        figs = "".join(rank_chart({u: ser for u, ser in GR[layer][k].items() if ser}, name,
+                                  f"{LENS[k][0]}: rank among {group}", PERIOD_LABEL.get(layer, {}).get(k, str))
+                       for k in keys if k in GR[layer])
+        return (f'<section class="rank-history reveal"><h2>How its rank has moved</h2>'
+                f'<p class="sub">Each lens re-ranked every period among the places with a figure. Faint lines are the rest.</p>'
+                f'<div class="rankh-grid">{figs}</div></section>') if figs else ""
+
+    def before(layer, k, name):
+        """The growth a year before the latest (same month or quarter for sub-yearly series) and its label, for Compare."""
+        ser = GR.get(layer, {}).get(k, {}).get(name) or {}
+        if not ser:
+            return None, ""
+        last = max(ser)
+        prev = last - 1 if isinstance(last, int) else f"{int(last[:4]) - 1}{last[4:]}"
+        if prev not in ser:
+            return None, ""
+        return ser[prev], PERIOD_LABEL.get(layer, {}).get(k, str)(prev)
+
     def h_url(h):
         return f"/philippines/{h['slug']}/"
 
@@ -912,7 +1026,6 @@ def main():
     def lens_stats(r, keys=None):
         return [[LENS[k][0], pct(r.get(k)), tone(r.get(k))] for k in (keys or [k for k, *_ in LENSES])]
     Pm = {p["id"]: p for p in P}
-    lens_keys = [k for k, *_ in LENSES]
     asof = {"people": f"Dec {dopa['years'][-1]}", "jobs": f"Dec {sso['years'][-1]}",
             "biz": f"Dec {sso['years'][-1]}", "money": month_label(latest)}
     base_of = {"people": f"Dec {dopa['years'][-2]}", "jobs": f"Dec {sso['years'][-2]}",
@@ -1369,6 +1482,7 @@ def main():
                     f'<p>Not yet. Country-level figures above are from the World Bank. Provinces arrive country by country: Thailand, Vietnam, Malaysia and the Philippines so far.</p></section>')
         others = "".join(f'<li><a href="{U(c_url(o))}">{esc(o["name"])}</a></li>' for o in sorted(Rv, key=lambda o: o["name"]) if o is not r)
         panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in Rv], r["name"], "Among the 11 countries") for k in lens_keys})
+        rankh = rank_section("region", r["name"], "the 11 countries", lens_keys)
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(r['name'])} {native(r['native'], lang)}</h1>
@@ -1376,6 +1490,7 @@ def main():
   <div class="mini-sea">{sea_map(highlight=r['iso'], interactive=False)}</div>
 </section>
 <div class="panels">{panels}</div>
+{rankh}
 {deep}
 <nav class="others" aria-label="Other countries"><h2>Other countries</h2><ul class="chips">{others}</ul></nav>
 """
@@ -1488,6 +1603,7 @@ def main():
             extra += " No district here has four commercial banks, so there are no bank figures."
         summary = brief(t, "th", 77, "Thai provinces", extra)
         panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in T.values()], t["name"], f"Among Thailand's {sum(1 for o in T.values() if o[k] is not None)} provinces with a figure" if k == "money" else "Among Thailand's 77 provinces") for k in lens_keys})
+        rankh = rank_section("th", t["name"], "Thailand's provinces", lens_keys)
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(t['name'])} {native(t['native'])}</h1>
@@ -1495,6 +1611,7 @@ def main():
   {th_map(highlight=tis, mini=True)}
 </section>
 <div class="panels">{panels}</div>
+{rankh}
 {dtable}
 <nav class="others" aria-label="Nearby provinces"><h2>Elsewhere in the {esc(t['region'])} region</h2><ul class="chips">{"".join(f'<li><a href="{U(p_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
 """
@@ -1667,6 +1784,7 @@ def main():
                 extra += f" Of its former provinces, {top[0]} grew new business registrations fastest ({pct(top[1])})."
         summary = brief(v, "vn", 34, "Vietnamese provinces", extra.strip())
         panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in V.values()], v["name"], "Among Vietnam's 34 provinces") for k in lens_keys})
+        rankh = rank_section("vn", v["name"], "Vietnam's 34 provinces", lens_keys)
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(v['name'])} {native(v['native'], 'vi')}</h1>
@@ -1674,6 +1792,7 @@ def main():
   {vn_map(highlight=slug_, mini=True)}
 </section>
 <div class="panels">{panels}</div>
+{rankh}
 {fd}
 <nav class="others" aria-label="Other provinces"><h2>Other provinces with high momentum</h2><ul class="chips">{"".join(f'<li><a href="{U(v_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
 """
@@ -1814,6 +1933,7 @@ def main():
         summary = brief(m, "my", 16, "Malaysian states and federal territories", extra.strip())
         near = sorted([o for o in M.values() if o is not m], key=lambda o: -(o["score"] or 0))[:8]
         panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in M.values()], m["name"], "Among Malaysia's 16 states and federal territories") for k in ("people", "jobs", "money")})
+        rankh = rank_section("my", m["name"], "Malaysia's 16 states", ["people", "jobs", "money"])
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(m['name'])} {native(m['native'], 'ms')}</h1>
@@ -1821,6 +1941,7 @@ def main():
   {my_map(highlight=slug_, mini=True)}
 </section>
 <div class="panels">{panels}</div>
+{rankh}
 {dtable}
 <nav class="others" aria-label="Other states"><h2>Other states with high momentum</h2><ul class="chips">{"".join(f'<li><a href="{U(m_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
 """
@@ -1914,6 +2035,7 @@ def main():
         summary = brief(h, "ph", n, "Philippine provinces", extra)
         near = sorted([o for o in H.values() if o["region"] == h["region"] and o is not h], key=lambda o: -(o["score"] or 0))[:8]
         panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in H.values()], h["name"], f"Among the Philippines' {len(H)} provinces") for k in ("people", "money")})
+        rankh = rank_section("ph", h["name"], f"the Philippines' {len(H)} provinces", ["money"])
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(h['name'])}</h1>
@@ -1921,6 +2043,7 @@ def main():
   {ph_map(highlight=slug_, mini=True)}
 </section>
 <div class="panels">{panels}</div>
+{rankh}
 {ptable}
 <nav class="others" aria-label="Nearby provinces"><h2>{"Elsewhere in " + esc(h["region"]) if near else "Other provinces"}</h2><ul class="chips">{"".join(f'<li><a href="{U(h_url(o))}">{esc(o["name"])}</a></li>' for o in (near or sorted(H.values(), key=lambda o: -(o["score"] or 0))[:8]))}</ul></nav>
 """
@@ -2145,21 +2268,33 @@ def main():
     for r in Rv:
         cmp[f"c-{r['iso']}"] = {"n": r["name"], "u": U(c_url(r)), "k": "Country", "s": r["score"],
                                 **{k: r[k] for k in lens_keys}, **{k + "y": str(r[k + "_year"]) for k in lens_keys}}
+        for k in lens_keys:
+            cmp[f"c-{r['iso']}"][k + "p"], cmp[f"c-{r['iso']}"][k + "py"] = before("region", k, r["name"])
     for t in T.values():
         cmp[f"p-{t['id']}"] = {"n": t["name"], "a": t["native"], "u": U(p_url(t)), "k": "Thai province", "s": t["score"],
                                **{k: t[k] for k in lens_keys}, **{k + "y": asof[k] for k in lens_keys}}
+        for k in lens_keys:
+            cmp[f"p-{t['id']}"][k + "p"], cmp[f"p-{t['id']}"][k + "py"] = before("th", k, t["name"])
     for d in D:
+        dser = [r_[1] for r_ in d["series"]]
+        dprev = growth(dser[-13], dser[-25]) if len(dser) >= 25 else None
         cmp[f"d-{d['id']}"] = {"n": f"{d['name_en']}, {T[d['prov']]['name']}", "a": d["name_th"], "u": U(d_url(d)), "k": "Thai district",
-                               "s": d.get("score"), "money": d["dep_yoy"], "moneyy": month_label(latest), "credit": d["cr_yoy"]}
+                               "s": d.get("score"), "money": d["dep_yoy"], "moneyy": month_label(latest), "credit": d["cr_yoy"],
+                               "moneyp": dprev, "moneypy": month_label(d["series"][-13][0]) if len(dser) >= 25 else ""}
     for v in V.values():
         cmp[f"v-{v['slug']}"] = {"n": f"{v['name']}, Vietnam", "a": v["native"], "u": U(v_url(v)), "k": "Vietnamese province", "s": v["score"],
                                  **{k: v[k] for k in vk}, **{k + "y": str(vlab[k][1]) for k in vk}}
+        for k in vk:
+            cmp[f"v-{v['slug']}"][k + "p"], cmp[f"v-{v['slug']}"][k + "py"] = before("vn", k, v["name"])
     for m in M.values():
         cmp[f"m-{m['slug']}"] = {"n": f"{m['name']}, Malaysia", "a": m["native"], "u": U(m_url(m)), "k": "Malaysian state", "s": m["score"],
                                  **{k: m[k] for k in lens_keys}, **{k + "y": str(mlab[k][1] or "") for k in lens_keys}}
+        for k in ("people", "jobs", "money"):
+            cmp[f"m-{m['slug']}"][k + "p"], cmp[f"m-{m['slug']}"][k + "py"] = before("my", k, m["name"])
     for h in H.values():
         cmp[f"h-{h['slug']}"] = {"n": f"{h['name']}, Philippines", "a": h["region"], "u": U(h_url(h)), "k": "Philippine province", "s": h["score"],
                                  **{k: h[k] for k in lens_keys}, **{k + "y": str(hlab[k][1] or "") for k in lens_keys}}
+        cmp[f"h-{h['slug']}"]["moneyp"], cmp[f"h-{h['slug']}"]["moneypy"] = before("ph", "money", h["name"])
     (OUT / "assets" / "compare.json").write_text(json.dumps(cmp, ensure_ascii=False, separators=(",", ":")))
     body = """
 <section class="hero"><h1>Compare</h1><p class="lede">Places you watch appear here side by side. Select Watch on any country, province or district page.</p>

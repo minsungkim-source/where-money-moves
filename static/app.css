@@ -489,3 +489,32 @@ dialog#cmdk[open] .cmdk-box { animation: pop .18s var(--ease); }
 .pipeline .a { stroke: currentColor; stroke-opacity: .55; stroke-width: 1.3; fill: none; }
 .pipeline .a.fail { stroke-dasharray: 4 4; }
 .pipeline figcaption { font-size: 14px; color: var(--muted); max-width: 70ch; }
+
+/* rank history: the layer as faint lines, this place in current-teal (build.py rank_chart) */
+.rank-history { display: grid; gap: 10px; }
+.rankh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 18px 36px; }
+.rankh { margin: 0; display: grid; gap: 4px; }
+.rankh figcaption { font-size: 13px; color: var(--muted); }
+.rankh svg { display: block; width: 100%; height: auto; overflow: visible; }
+.rankh .grid line { stroke: var(--line); stroke-width: 1; }
+.rankh text { font: 500 11px var(--body); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.rankh .rest path { fill: none; stroke: var(--ink); stroke-opacity: .09; stroke-width: 1; }
+.rankh path.me { fill: none; stroke: var(--current); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.rankh .end { fill: var(--current); stroke: var(--paper); stroke-width: 2; }
+.rankh .endl { font: 700 13px var(--body); fill: var(--ink); }
+.rankh .hair { stroke: var(--ink); stroke-opacity: .35; stroke-width: 1; }
+
+/* Compare: dumbbells per lens. Hollow = a year earlier, solid = latest, the line = the change in pace */
+.cmp-key { display: flex; gap: 20px; margin: -10px 0 0; font-size: 13px; color: var(--muted); }
+.cmp-key span { display: inline-flex; align-items: center; gap: 7px; }
+.cmp-key i, .cmp-bar .dot { width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; }
+.cmp-key i.was, .cmp-bar .dot.was { border: 2px solid var(--muted); background: var(--paper); }
+.cmp-key i.now, .cmp-bar .dot.now { background: var(--ink); box-shadow: 0 0 0 2px var(--paper); }
+.cmp-bar .track.bell { height: 14px; }
+.cmp-bar .track.bell .dot { position: absolute; top: 50%; transform: translate(-50%, -50%); }
+.cmp-bar .track.bell .seg { position: absolute; top: 50%; height: 2px; transform: translateY(-50%); background: var(--muted); opacity: .6; }
+.cmp-bar .num small { display: block; font-weight: 400; font-size: 12px; }
+@media (max-width: 640px) {             /* a phone: the place's name on its own line, the dumbbell gets the full width */
+  .cmp-bar { grid-template-columns: 1fr 76px; gap: 2px 12px; }
+  .cmp-bar > span:first-child { grid-column: 1 / -1; }
+}
