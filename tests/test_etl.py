@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "etl"))
 
 import etl          # noqa: E402
 import my_dosm      # noqa: E402
+import ph_psa       # noqa: E402
 import summary      # noqa: E402
 import th_dopa      # noqa: E402
 import th_sso       # noqa: E402
@@ -258,6 +259,46 @@ class Malaysia(unittest.TestCase):
         self.assertEqual(my_dosm.quarter("2026-04-01"), "2026-Q2")
         with self.assertRaises(etl.ParserDriftError):
             my_dosm.quarter("2026-05-01")
+
+
+def ph_fetched(region_total=30.0):
+    """Two regions as PSA lays them out: Metro Manila (two cities) and Central Visayas (Cebu + Cebu City)."""
+    places = [(0, "Philippines"), (1, "National Capital Region (NCR)"), (2, "City of Manila"), (2, "Quezon City"),
+              (1, "Region VII (Central Visayas)"), (2, "Cebu"), (2, "City of Cebu")]
+    gdp = {"Philippines": {"2024": 70.0, "2025": 77.0}, "National Capital Region (NCR)": {"2024": 40.0, "2025": 44.0},
+           "City of Manila": {"2024": 15.0, "2025": 16.0}, "Quezon City": {"2024": 25.0, "2025": 28.0},
+           "Region VII (Central Visayas)": {"2024": region_total, "2025": 33.0}, "Cebu": {"2024": 20.0, "2025": 22.0},
+           "City of Cebu": {"2024": 10.0, "2025": 11.0}}
+    pop = {k: {"value": v["2024"] * 1000} for k, v in gdp.items()}
+    pop["Philippines"] = {"value": 70000.0}
+    return {"gdp_real": (places, gdp), "gdp_nominal": (places, gdp), "pop2020": (places, pop), "pop2024": (places, pop)}
+
+
+class Philippines(unittest.TestCase):
+    def test_footnote_marks_come_off(self):
+        self.assertEqual(ph_psa.clean("....Negros Occidental 4/*"), (2, "Negros Occidental"))
+        self.assertEqual(ph_psa.clean("....Special Geographic Area 8**"), (2, "Special Geographic Area"))
+        self.assertEqual(ph_psa.clean("....City of Isabela (Not a Province) **"), (2, "City of Isabela"))
+        self.assertEqual(ph_psa.clean("PHILIPPINES /a")[1], "PHILIPPINES")
+        self.assertEqual(ph_psa.clean("....Davao de Oro (Compostela Valley)")[1], "Davao de Oro (Compostela Valley)")
+
+    def test_cities_join_the_province_around_them(self):
+        self.assertEqual(ph_psa.unit_of("City of Lapu-Lapu", "regionviicentralvisayas"), "cebu")
+        self.assertEqual(ph_psa.unit_of("Pateros", "nationalcapitalregionncr"), "metro-manila")
+        self.assertEqual(ph_psa.unit_of("Maguindanao del Sur", "bangsamoroautonomousregioninmuslimmindanaobarmm"), "maguindanao")
+        self.assertEqual(ph_psa.unit_of("Samar (Western Samar)", "regionviiieasternvisayas"), "samar")
+
+    def test_units_add_up_and_keep_their_parts(self):
+        out = ph_psa.build(ph_fetched())
+        self.assertEqual(sorted(out["provinces"]), ["cebu", "metro-manila"])
+        cebu = out["provinces"]["cebu"]
+        self.assertEqual(cebu["series"]["gdp_real"], {"2024": 30.0, "2025": 33.0})
+        self.assertEqual(sorted(cebu["parts"]), ["Cebu", "Cebu City"])
+        self.assertEqual(cebu["region"], "Central Visayas")
+
+    def test_places_must_add_up_to_their_region(self):
+        with self.assertRaises(etl.ParserDriftError):
+            ph_psa.build(ph_fetched(region_total=35.0))
 
 
 class Words(unittest.TestCase):

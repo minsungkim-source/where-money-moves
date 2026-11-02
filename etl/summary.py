@@ -38,7 +38,7 @@ def new(name: str):
     return json.loads(p.read_text()) if p.exists() else None
 
 
-FILES = ["meta.json", "districts.json", "provinces.json", "th_sso.json", "th_dopa.json", "sea_wb.json", "vn_gso.json", "my_dosm.json"]
+FILES = ["meta.json", "districts.json", "provinces.json", "th_sso.json", "th_dopa.json", "sea_wb.json", "vn_gso.json", "my_dosm.json", "ph_psa.json"]
 
 
 def strip_stamps(x):
@@ -163,6 +163,17 @@ def main() -> int:
             p1 = last(a1)
             prev = str(int(p1[:4]) - 1) + p1[4:]          # same quarter or year, a year earlier
             lines.append(f"- {label}: latest {last(a0) or '–'} → **{p1}**, national {pct(tot(a1, p1) / tot(a1, prev) - 1) if tot(a1, prev) else '–'}")
+        lines.append("")
+
+    # ── Philippines PSA
+    h0, h1 = old("ph_psa.json", args.base), new("ph_psa.json")
+    if h1:
+        lines.append(f"### Philippines — PSA OpenSTAT, {len(h1['provinces'])} provinces\n")
+        last = lambda d: max((int(y) for p in d["provinces"].values() for y in p["series"]["gdp_real"]), default=None) if d else None
+        y1 = last(h1)
+        tot = lambda y: sum(p["series"]["gdp_real"].get(str(y), 0) for p in h1["provinces"].values())
+        lines.append(f"- Real GDP (provincial accounts): latest year {last(h0) or '–'} → **{y1}**, all provinces {pct(tot(y1) / tot(y1 - 1) - 1)}")
+        lines.append("- Population: 2020 and 2024 censuses (changes only with a new census)")
         lines.append("")
 
     # ── World Bank (region)

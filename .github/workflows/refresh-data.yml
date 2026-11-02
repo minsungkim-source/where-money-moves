@@ -62,6 +62,10 @@ jobs:
         id: my
         continue-on-error: true
         run: python etl/my_dosm.py
+      - name: "Philippines: Philippine Statistics Authority (OpenSTAT)"
+        id: ph
+        continue-on-error: true
+        run: python etl/ph_psa.py
       - name: "Region: World Bank"
         id: wb
         continue-on-error: true
@@ -85,6 +89,7 @@ jobs:
             echo "| DOPA | ${{ steps.dopa.outcome }} |"
             echo "| Vietnam NSO | ${{ steps.vn.outcome }} |"
             echo "| Malaysia DOSM | ${{ steps.my.outcome }} |"
+            echo "| Philippines PSA | ${{ steps.ph.outcome }} |"
             echo "| World Bank | ${{ steps.wb.outcome }} |"
             echo
             echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -125,7 +130,7 @@ jobs:
           fi
 
       - name: Report failed sources
-        if: steps.bot.outcome == 'failure' || steps.sso.outcome == 'failure' || steps.dopa.outcome == 'failure' || steps.vn.outcome == 'failure' || steps.my.outcome == 'failure' || steps.wb.outcome == 'failure'
+        if: steps.bot.outcome == 'failure' || steps.sso.outcome == 'failure' || steps.dopa.outcome == 'failure' || steps.vn.outcome == 'failure' || steps.my.outcome == 'failure' || steps.ph.outcome == 'failure' || steps.wb.outcome == 'failure'
         run: |
           gh label create source-failed --color d93f0b --description "A data source failed in the monthly refresh" 2>/dev/null || true
           title="Data refresh: a source failed"

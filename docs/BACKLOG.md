@@ -50,6 +50,17 @@ Ship small, then widen. Top to bottom.
 - [ ] District GDP exists (`gdp_district_real_supply`, to 2020 only) and district household income (HIES 2022):
       district pages with a map would need geoBoundaries MYS ADM2 and a name match for 166 districts
 
+## v1.5 — Philippines (fourth country) ✓ (2026-11-02)
+
+- [x] PSA OpenSTAT (PX-Web, no key; needs a User-Agent): Provincial Product Accounts 2018–2025 by province and HUC,
+      2020 and 2024 censuses
+- [x] HUCs added to their host province, Metro Manila's 17 LGUs as one, Maguindanao whole (split 2022): 83 units that
+      are all places on the map; the cities kept as a breakdown; EMBO barangays (Makati → Taguig, 2023) explained on the page
+- [x] Map from geoBoundaries gbOpen PHL ADM2 merged by arcs; Sultan Kudarat patched from the simplified GeoJSON
+- [ ] Jobs and Businesses blank at province level. Regional LFS exists only 2018–2021 on OpenSTAT; approved
+      investments are by region only. A region layer (18) could carry them
+- [ ] Indonesia (BPS) needs a registered API key: the owner would have to create one
+
 ## v1.4 — proxies where open data is thin
 
 - [ ] Night-time lights (VIIRS monthly) as a common subnational Money proxy for countries without bank data
@@ -58,6 +69,6 @@ Ship small, then widen. Top to bottom.
 
 ## Later
 
-- [ ] Vietnam (34 provinces after the 2025 merger: crosswalk needed), Indonesia (BPS, 514 kab/kota), Philippines (PSA)
+- [ ] Indonesia (BPS, 38 provinces / 514 kab/kota; API key needed)
 - [ ] Screener with presets (franchise site, branch/agent expansion, factory land)
 - [ ] LINE OA / email alerts for watched places

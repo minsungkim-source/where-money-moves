@@ -125,12 +125,14 @@ main > * { min-width: 0; }
 .hb { fill: var(--null); } .hl { stroke: var(--null-line); stroke-width: 1.1; }   /* the shared #hatch pattern */
 .map.mini { width: 96px; height: 172px; }
 /* Vietnam: merged provinces are several old shapes in one path, so fills carry no stroke; borders are their own layers */
-.map.vn .units path { stroke: none; }
-.map.vn .units a:hover path, .map.vn .units a:focus-visible path, .map.vn .units a.cur path { stroke: none; filter: brightness(.86) saturate(1.2); }
-.map.vn .outline { fill: none; stroke: var(--paper); stroke-width: .9; stroke-linejoin: round; pointer-events: none; }
+.map.vn .units path, .map.ph .units path { stroke: none; }
+.map.vn .units a:hover path, .map.vn .units a:focus-visible path, .map.vn .units a.cur path,
+.map.ph .units a:hover path, .map.ph .units a:focus-visible path, .map.ph .units a.cur path { stroke: none; filter: brightness(.86) saturate(1.2); }
+.map.vn .outline, .map.ph .outline { fill: none; stroke: var(--paper); stroke-width: .9; stroke-linejoin: round; pointer-events: none; }
+.map.ph .outline { stroke-width: .6; }
 .map.vn .former { fill: none; stroke: var(--paper); stroke-width: .7; stroke-dasharray: 2 2.4; opacity: .9; pointer-events: none; }
-.map.mini.vn { width: 86px; }
-.mapframe .map.vn { max-height: 80vh; width: auto; max-width: 100%; margin: 0 auto; }   /* the country is tall and thin */
+.map.mini.vn, .map.mini.ph { width: 86px; }
+.mapframe .map.vn, .mapframe .map.ph { max-height: 80vh; width: auto; max-width: 100%; margin: 0 auto; }   /* the country is tall and thin */
 /* Malaysia: wide (peninsula + Borneo, moved closer). The cut between them is marked, and the note says so */
 .map.my .inset { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
 .map.my .inset-note { font: 500 10px var(--body); fill: var(--muted); }

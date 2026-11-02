@@ -9,19 +9,21 @@ A static, English-only data site. Native place names (ชลบุรี, Việt
 - **Vietnam**: 34 provinces (2025 boundaries) on all four lenses, rebuilt from the 63 former provinces
 - **Malaysia**: 16 states and federal territories on three lenses (no open business series by state), 166 districts on
   population and employment
-- 428 pages, each complete without JavaScript (search engines, slow phones). JS adds the interactive layer.
+- **Philippines**: 83 provinces (each highly urbanized city counted with the province around it, Metro Manila as one)
+  on two lenses, census population and real GDP
+- 515 pages, each complete without JavaScript (search engines, slow phones). JS adds the interactive layer.
 
 ## The four lenses
 
-| Lens | Countries (World Bank) | Thai provinces | Thai districts | Vietnamese provinces (NSO) | Malaysian states (DOSM) |
-|---|---|---|---|---|---|
-| People | urban population growth `SP.URB.TOTL` | registered population, DOPA stat.bora (Dec, yearly) | – | average population `V02.03-07` + net migration `V02.21-23` | population estimates `population_state` |
-| Jobs | employed = labour force × (1 − unemployment) | Section 33 insured employees, SSO (Dec, yearly) | – | employed workers `V02.45` | employed persons `lfs_qtr_state`, same quarter a year earlier |
-| Businesses | new LLC registrations `IC.BUS.NREG` | employers registered with SSO (**proxy**) | – | newly registered enterprises `V05.02` | – (no open state series; left blank, never zero) |
-| Money | real GDP `NY.GDP.MKTP.KD` | bank deposits + credit, BOT (monthly) | bank deposits + credit, BOT | enterprise net revenue `V05.23` (nominal) | real GDP `gdp_state_real_supply` (2015 prices) |
+| Lens | Countries (World Bank) | Thai provinces | Thai districts | Vietnamese provinces (NSO) | Malaysian states (DOSM) | Philippine provinces (PSA) |
+|---|---|---|---|---|---|---|
+| People | urban population growth `SP.URB.TOTL` | registered population, DOPA stat.bora (Dec, yearly) | – | average population `V02.03-07` + net migration `V02.21-23` | population estimates `population_state` | census 2020 → 2024, a year |
+| Jobs | employed = labour force × (1 − unemployment) | Section 33 insured employees, SSO (Dec, yearly) | – | employed workers `V02.45` | employed persons `lfs_qtr_state`, same quarter a year earlier | – (national survey only) |
+| Businesses | new LLC registrations `IC.BUS.NREG` | employers registered with SSO (**proxy**) | – | newly registered enterprises `V05.02` | – (no open state series; left blank, never zero) | – |
+| Money | real GDP `NY.GDP.MKTP.KD` | bank deposits + credit, BOT (monthly) | bank deposits + credit, BOT | enterprise net revenue `V05.23` (nominal) | real GDP `gdp_state_real_supply` (2015 prices) | real GDP, Provincial Product Accounts (2018 prices) |
 
 **Momentum score** is the mean of per-lens percentile ranks *within a layer*: 11 countries, 77 Thai provinces,
-234 Thai districts, 34 Vietnamese provinces or 16 Malaysian states. A missing lens is left out of the mean.
+234 Thai districts, 34 Vietnamese provinces, 16 Malaysian states or 83 Philippine provinces. A missing lens is left out of the mean.
 Layers are never mixed on one axis, because national definitions differ.
 
 ### Proxies (where open data has a gap)
@@ -42,6 +44,8 @@ etl/vn_gso.py   Vietnam NSO PX-Web, 63 old provinces → 34 new                 
 etl/vn_geo.py   geoBoundaries VNM ADM1 TopoJSON, merged by shared arcs          → data/reference/vn.geo.json
 etl/my_dosm.py  OpenDOSM CSVs: state population, quarterly LFS, real GDP, districts → data/processed/my_dosm.json
 etl/my_geo.py   geoBoundaries MYS ADM1 TopoJSON (UNHCR via HDX)                 → data/reference/my.geo.json
+etl/ph_psa.py   PSA OpenSTAT: provincial GDP + 2020/2024 censuses, HUCs → host  → data/processed/ph_psa.json
+etl/ph_geo.py   geoBoundaries PHL ADM2 (NAMRIA/PSA via HDX), merged by arcs     → data/reference/ph.geo.json
 etl/sea_wb.py   World Bank WDI, 11 countries                                    → data/processed/sea_wb.json
 etl/sea_geo.py  Natural Earth 1:50m outlines                                    → data/reference/sea.geo.json
 ```
@@ -56,12 +60,15 @@ Each source has a structure fingerprint and a total cross-check, and stops rathe
 - **Malaysia**: every file must keep the columns we read; the same 16 states in each; states add up to the national
   population, employed persons (every quarter) and GDP (with "Supra", output no state can claim); districts add up to
   their state. Labour-survey district spellings that differ are aliased by hand, anything else stops the run
+- **Philippines**: every place a table lists must map to a unit (provinces by name, HUCs through a fixed host table);
+  places add up to their region and regions to the Philippines, for both price bases and both censuses. The boundary
+  units must equal the PSA units (the TopoJSON lost Sultan Kudarat, patched from the same release's GeoJSON)
 - **DOPA**: the year page must list 77 provinces, male + female = total in every file; 2020–2024 match the old catalog exactly
 
 ```bash
 PY=../blindspot-th/etl/.venv/bin/python     # needs requests + openpyxl
-$PY etl/etl.py && $PY etl/th_sso.py && $PY etl/th_dopa.py && $PY etl/vn_gso.py && $PY etl/my_dosm.py && $PY etl/sea_wb.py
-$PY etl/sea_geo.py && $PY etl/vn_geo.py && $PY etl/my_geo.py   # rarely; outlines don't change
+$PY etl/etl.py && $PY etl/th_sso.py && $PY etl/th_dopa.py && $PY etl/vn_gso.py && $PY etl/my_dosm.py && $PY etl/ph_psa.py && $PY etl/sea_wb.py
+$PY etl/sea_geo.py && $PY etl/vn_geo.py && $PY etl/my_geo.py && $PY etl/ph_geo.py   # rarely; outlines don't change
 ```
 
 Add `--use-cache` to the first three to reuse `data/raw/` (gitignored, never committed).
@@ -104,7 +111,7 @@ Interactive layer (`static/app.js`, progressive enhancement):
 - Theme toggle (system / dark / light), reading progress, view transitions, speculation-rules prerender
 - PWA manifest and service worker (https only)
 
-- **3D view** on the Thailand, Vietnam and Malaysia explorers (`static/map3d.js`, three.js 0.169.0 self-hosted in
+- **3D view** on the Thailand, Vietnam, Malaysia and Philippines explorers (`static/map3d.js`, three.js 0.169.0 self-hosted in
   `static/vendor/`, MIT): provinces extruded to their rank on the selected lens; loads only when "3D" is pressed
 - **Film** `/film/` (`static/film.js`): a 43-second data film drawn in code, directed with the
   [Lemo-Opuscar](https://github.com/lemomo-ai/lemo-opuscar) method (Data Storytelling grammar). Captions and subjects are
