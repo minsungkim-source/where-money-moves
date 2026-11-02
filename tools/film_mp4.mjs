@@ -3,75 +3,20 @@
 //
 //   python build.py && node tools/film_mp4.mjs [out.mp4] [fps]
 //
-// No packages: Node's own http + WebSocket drive the installed Chrome over the DevTools protocol, and ffmpeg encodes.
-// CHROME=/path/to/chrome overrides the browser; the built site is read from site/ (BASE_PATH is stripped if set).
-import http from "node:http";
+// No packages: tools/chrome.mjs drives the installed Chrome over the DevTools protocol, and ffmpeg encodes.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { ROOT, serve, chrome } from "./chrome.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SITE = path.join(ROOT, "site");
 const OUT = path.resolve(process.argv[2] || path.join(ROOT, "dist", "where-the-money-moved.mp4"));
 const FPS = +(process.argv[3] || 30);
 const W = 1920, H = 1080, SR = 48000;
-const CHROME = process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const BASE = (process.env.BASE_PATH || "").replace(/\/$/, "");
 
-// ── a static server for site/
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
-  ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json", ".xml": "application/xml" };
-const server = http.createServer((req, res) => {
-  let p = decodeURIComponent(new URL(req.url, "http://x").pathname);
-  if (BASE && p.startsWith(BASE)) p = p.slice(BASE.length) || "/";
-  let f = path.join(SITE, path.normalize(p));
-  if (!f.startsWith(SITE)) { res.writeHead(403).end(); return; }
-  if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, "index.html");
-  fs.readFile(f, (err, buf) => {
-    if (err) { res.writeHead(404).end(); return; }
-    res.writeHead(200, { "content-type": TYPES[path.extname(f)] || "application/octet-stream" }).end(buf);
-  });
-});
-await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const pageURL = `http://127.0.0.1:${server.address().port}${BASE}/film/`;
-
-// ── headless Chrome with a throwaway profile; port 0 → it writes the chosen port to DevToolsActivePort
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), "wmm-film-"));
-const chrome = spawn(CHROME, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--hide-scrollbars",
-  "--mute-audio", "--no-first-run", "--no-default-browser-check", `--window-size=${W},${H}`, "about:blank"], { stdio: "ignore" });
-let port = null;
-for (let i = 0; i < 100 && !port; i++) {
-  await new Promise((r) => setTimeout(r, 100));
-  try { port = fs.readFileSync(path.join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]; } catch {}
-}
-if (!port) throw new Error("Chrome did not start: " + CHROME);
-const target = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find((t) => t.type === "page");
-
-const ws = new WebSocket(target.webSocketDebuggerUrl);
-await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
-let seq = 0;
-const pending = new Map(), waiters = [];
-ws.onmessage = (ev) => {
-  const m = JSON.parse(ev.data);
-  if (m.id && pending.has(m.id)) { const [r, j] = pending.get(m.id); pending.delete(m.id); m.error ? j(new Error(m.error.message)) : r(m.result); }
-  else if (m.method) waiters.filter((w) => w.method === m.method).forEach((w) => { waiters.splice(waiters.indexOf(w), 1); w.r(m.params); });
-};
-const send = (method, params = {}) => new Promise((r, j) => { const id = ++seq; pending.set(id, [r, j]); ws.send(JSON.stringify({ id, method, params })); });
-const once = (method) => new Promise((r) => waiters.push({ method, r }));
-async function evaluate(expression) {
-  const res = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
-  if (res.exceptionDetails) throw new Error(res.exceptionDetails.exception?.description || res.exceptionDetails.text);
-  return res.result.value;
-}
-
-await send("Page.enable");
-await send("Emulation.setDeviceMetricsOverride", { width: W, height: H, deviceScaleFactor: 1, mobile: false });
-await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }, { name: "prefers-reduced-motion", value: "no-preference" }] });
-const loaded = once("Page.loadEventFired");
-await send("Page.navigate", { url: pageURL });
-await loaded;
+const server = await serve();
+const browser = await chrome(W, H);
+const { send, evaluate } = browser;
+await browser.open(`${server.origin}/film/`);
 
 // the stage fills the viewport at 1920×1080; the caption is set for a 1080p frame, not for a page column
 const DUR = await evaluate(`(async () => {
@@ -105,7 +50,7 @@ const wavB64 = await evaluate(`(async () => {
   return btoa(bin);
 })()`);
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
-const wav = path.join(profile, "sound.wav");
+const wav = OUT.replace(/\.mp4$/, "") + ".sound.wav";
 fs.writeFileSync(wav, Buffer.from(wavB64, "base64"));
 
 // ── frames → ffmpeg (the score is mixed for a page; loudnorm lifts it to video loudness)
@@ -125,8 +70,6 @@ ff.stdin.end();
 await done;
 process.stdout.write(`\r  ${N} frames, ${DUR}s at ${FPS} fps → ${OUT}\n`);
 
-ws.close(); server.close();
-const exited = new Promise((r) => chrome.once("exit", r));
-chrome.kill();
-await exited;                                                     // Chrome writes to its profile until it has gone
-fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5 });
+await browser.close();
+server.close();
+fs.rmSync(wav, { force: true });

@@ -121,6 +121,9 @@ Interactive layer (`static/app.js`, progressive enhancement):
   chosen from the data at build time; Web Audio sonification; `window.wmmFilmRender(t)` renders any frame for export.
   Treatment and credits: `docs/film/`. To export a 1080p mp4 (needs Chrome and ffmpeg 7+, no packages):
   `python build.py && node tools/film_mp4.mjs` → `dist/where-the-money-moved.mp4` (frames and sound come from the page itself)
+- **Share images**: every page has its own 1200×630 card (place, rank, lens values, a locator map), photographed at
+  deploy time from the template build.py writes to `site/og/`: `node tools/og_images.mjs` (≈25 s for 517 pages, not committed).
+  Both tools share `tools/chrome.mjs` (static server + headless Chrome over the DevTools protocol, no packages)
 
 Design notes live at the top of `static/app.css`. Project skills used while building are in `.claude/skills/`
 (frontend-design, accessibility, seo, performance, programmatic-seo), each with its licence and `SOURCE.md`.

@@ -29,6 +29,13 @@ jobs:
           SITE_URL: https://${{ github.repository_owner }}.github.io
           BASE_PATH: /${{ github.event.repository.name }}
         run: python build.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"            # the share-image tool uses Node's built-in WebSocket
+      - name: Share images, one per page (the runner's Chrome photographs site/og/)
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}
+        run: node tools/og_images.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

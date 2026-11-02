@@ -641,8 +641,21 @@ NATIVE_LANG = {"THA": "th", "KHM": "km", "LAO": "lo", "MMR": "my", "VNM": "vi", 
                "PHL": "fil", "SGP": "ms", "BRN": "ms", "TLS": "pt"}
 
 
+CARDS: dict[str, dict] = {}   # page path → what its share image shows (registered before page(); page() fills the rest)
+
+
+def og_key(path: str) -> str:
+    p = path[len(BASE):] if BASE and path.startswith(BASE) else path
+    return p.strip("/").replace("/", "--") or "home"
+
+
 def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") -> str:
     canonical = SITE_URL + path
+    card = CARDS.setdefault(path, {})
+    card.setdefault("title", title.split(" | ")[0])
+    card.setdefault("line", desc)
+    card.setdefault("map", "sea")
+    card["key"] = og_key(path)
     ld = ""
     if crumbs:
         ld = ('<script type="application/ld+json">' + json.dumps({
@@ -674,7 +687,9 @@ def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") 
 <meta property="og:title" content="{esc(title)}">
 <meta property="og:description" content="{esc(desc)}">
 <meta property="og:url" content="{canonical}">
-<meta property="og:image" content="{SITE_URL}{U('/assets/og.png')}">
+<meta property="og:image" content="{SITE_URL}{U('/og/' + card['key'] + '.png')}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#f6f7f4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1720" media="(prefers-color-scheme: dark)">
@@ -838,6 +853,14 @@ def main():
 
     def m_url(m):
         return f"/malaysia/{m['slug']}/"
+
+    def card(path, kicker, name, native_, rank, stats, map_, hl=None):
+        """What the share image for `path` shows (tools/og_images.mjs draws it from og/og-data.json)."""
+        CARDS[U(path)] = {"kicker": kicker, "title": name, "native": native_ or "", "rank": rank,
+                          "stats": [s_ for s_ in stats if s_[1] not in (None, "–")][:4], "map": map_, "hl": hl}
+
+    def lens_stats(r, keys=None):
+        return [[LENS[k][0], pct(r.get(k)), tone(r.get(k))] for k in (keys or [k for k, *_ in LENSES])]
     Pm = {p["id"]: p for p in P}
     lens_keys = [k for k, *_ in LENSES]
     asof = {"people": f"Dec {dopa['years'][-1]}", "jobs": f"Dec {sso['years'][-1]}",
@@ -916,7 +939,7 @@ def main():
             if interactive:
                 shapes += (f'<a href="{U(c_url(r))}" data-tip=\'{esc(json.dumps(tip, ensure_ascii=False))}\' aria-label="{esc(r["name"])}, momentum {tip["s"]}"{cls}>{body}</a>')
             else:
-                shapes += f'<g{cls}>{body}</g>'
+                shapes += f'<g data-k="{f["iso3"]}"{cls}>{body}</g>'
             lx, ly = SEA_PROJ(*LABEL_AT[f["iso3"]]) if f["iso3"] in LABEL_AT else (cx, cy)
             labels += f'<text x="{lx:.1f}" y="{ly + 4:.1f}" text-anchor="middle">{esc(r["name"])}</text>'
         return (f'<svg class="map sea" data-lens="score" viewBox="0 0 {W:.0f} {H:.0f}" role="group" aria-label="Map of Southeast Asia">'
@@ -944,7 +967,7 @@ def main():
             if tis not in th_full:
                 continue
             if mini:
-                shapes += f'<path d="{th_mini[tis]}"{ON if highlight == tis else ""}/>'
+                shapes += f'<path data-k="{tis}" d="{th_mini[tis]}"{ON if highlight == tis else ""}/>'
                 continue
             tip = {"n": t["name"], "a": t["native"], "s": None if t["score"] is None else round(t["score"]),
                    "people": pct(t["people"]), "jobs": pct(t["jobs"]), "biz": pct(t["biz"]), "money": pct(t["money"])}
@@ -986,7 +1009,7 @@ def main():
         shapes = ""
         for k, v in V.items():
             if mini:
-                shapes += f'<path d="{vn_mini[k]}"{ON if highlight == k else ""}/>'
+                shapes += f'<path data-k="{k}" d="{vn_mini[k]}"{ON if highlight == k else ""}/>'
                 continue
             tip = {"n": v["name"], "a": v["native"], "s": None if v["score"] is None else round(v["score"]),
                    "people": pct(v["people"]), "jobs": pct(v["jobs"]), "biz": pct(v["biz"]), "money": pct(v["money"])}
@@ -1015,7 +1038,7 @@ def main():
         shapes = ""
         for k, m in M.items():
             if mini:
-                shapes += f'<path d="{my_mini[k]}"{ON if highlight == k else ""}/>'
+                shapes += f'<path data-k="{k}" d="{my_mini[k]}"{ON if highlight == k else ""}/>'
                 continue
             tip = {"n": m["name"], "a": m["native"], "s": None if m["score"] is None else round(m["score"]),
                    "people": pct(m["people"]), "jobs": pct(m["jobs"]), "biz": "–", "money": pct(m["money"])}
@@ -1050,7 +1073,7 @@ def main():
         shapes = ""
         for k, h in H.items():
             if mini:
-                shapes += f'<path d="{ph_mini[k]}"{ON if highlight == k else ""}/>'
+                shapes += f'<path data-k="{k}" d="{ph_mini[k]}"{ON if highlight == k else ""}/>'
                 continue
             tip = {"n": h["name"], "a": h["region"], "s": None if h["score"] is None else round(h["score"]),
                    "people": pct(h["people"]), "jobs": "–", "biz": "–", "money": pct(h["money"])}
@@ -1235,6 +1258,8 @@ def main():
         "description": "Where people, jobs, businesses and money are moving across Southeast Asia.",
         "url": SITE_URL + "/", "spatialCoverage": "Southeast Asia", "license": "https://creativecommons.org/licenses/by/4.0/",
         "creator": {"@type": "Organization", "name": "Where Money Moves"}}, ensure_ascii=False) + "</script>")
+    CARDS[U("/")] = {"kicker": "Eleven countries, four kinds of movement", "title": "Where is the money moving in Southeast Asia?",
+                     "line": "People, jobs, businesses and money, ranked from public data, down to province and district.", "map": "sea"}
     write("/", page(U("/"), "Where Money Moves: where people, jobs, businesses and money are moving in Southeast Asia",
                     "Rank 11 Southeast Asian countries and every Thai province on population, jobs, businesses and money. Public data, updated monthly.",
                     home, meta, extra_head=ld))
@@ -1304,6 +1329,8 @@ def main():
 <nav class="others" aria-label="Other countries"><h2>Other countries</h2><ul class="chips">{others}</ul></nav>
 """
         path = c_url(r)
+        card(path, "Southeast Asian country", r["name"], r["native"], f"{ordinal(r['rank'])} of 11 on momentum" if r.get("rank") else "",
+             lens_stats(r), "sea", r["iso"])
         write(path, page(U(path), f"{r['name']}: population, jobs, businesses and GDP growth | Where Money Moves",
                          first_sentences(summary),
                          body, meta, crumbs=[("Southeast Asia", "/"), (r["name"], path)],
@@ -1337,6 +1364,7 @@ def main():
   <th scope="col" class="num"><button data-k="6">Money</button></th></tr></thead><tbody>{trows}</tbody></table></div>
 </section>
 """
+    CARDS[U("/thailand/")] = {"map": "th"}
     write("/thailand/", page(U("/thailand/"), "Thailand provinces ranked by population, jobs, businesses and money | Where Money Moves",
                              "All 77 Thai provinces ranked on registered population, formal employment, registered employers and bank money growth.",
                              explorer, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/")], extra_head=import_map()))
@@ -1419,6 +1447,8 @@ def main():
 <nav class="others" aria-label="Nearby provinces"><h2>Elsewhere in the {esc(t['region'])} region</h2><ul class="chips">{"".join(f'<li><a href="{U(p_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
 """
         path = p_url(t)
+        card(path, f"Province of Thailand, {t['region']} region", t["name"], t["native"], f"{ordinal(t['rank'])} of 77 on momentum" if t.get("rank") else "",
+             lens_stats(t), "th", tis)
         write(path, page(U(path), f"{t['name']} province: population, jobs, businesses and bank money | Where Money Moves",
                          first_sentences(summary),
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/"), (t["name"], path)],
@@ -1484,6 +1514,11 @@ def main():
 {f'<nav class="others" aria-label="Other districts"><h2>Other districts in {esc(t["name"])}</h2><ul class="chips">' + "".join(f'<li><a href="{U(d_url(x))}">{esc(x["name_en"])} <span class="{tone(x["dep_yoy"])}">{pct(x["dep_yoy"])}</span></a></li>' for x in sibs) + "</ul></nav>" if sibs else ""}
 """
         path = d_url(d)
+        card(path, f"District of {t['name']}, Thailand", d["name_en"], d["name_th"],
+             f"{ordinal(d['rank'])} of {nD} districts on bank money" if d.get("score") is not None else "",
+             [["Deposits", pct(d["dep_yoy"]), tone(d["dep_yoy"])], ["Credit", pct(d["cr_yoy"]), tone(d["cr_yoy"])],
+              ["People", pct(dp.get("people")), tone(dp.get("people"))],
+              ["Branches", signed_int(d["br_change"]) if d["br_change"] is not None else None, tone(d["br_change"])]], "th", d["prov"])
         write(path, page(U(path), f"{d['name_en']}, {t['name']}: bank deposits, credit and population | Where Money Moves",
                          first_sentences(f"{d['name_en']}, {t['name']}, Thailand. {summary}"),
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/"), (t["name"], p_url(t)), (d["name_en"], path)],
@@ -1519,6 +1554,7 @@ def main():
   <div class="tablewrap"><table class="rank" data-sortable><thead><tr>{vhead}</tr></thead><tbody>{vrows}</tbody></table></div>
 </section>
 """
+    CARDS[U("/vietnam/")] = {"map": "vn"}
     write("/vietnam/", page(U("/vietnam/"), "Vietnam's 34 provinces ranked by population, jobs, new businesses and revenue | Where Money Moves",
                             "Every Vietnamese province on the 2025 boundaries, ranked on population, employment, new enterprises and enterprise revenue growth.",
                             explorer, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/")], extra_head=import_map()))
@@ -1589,6 +1625,8 @@ def main():
 <nav class="others" aria-label="Other provinces"><h2>Other provinces with high momentum</h2><ul class="chips">{"".join(f'<li><a href="{U(v_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
 """
         path = v_url(v)
+        card(path, "Province of Vietnam" + (", formed in 2025" if merged else ""), v["name"], v["native"],
+             f"{ordinal(v['rank'])} of 34 on momentum" if v.get("rank") else "", lens_stats(v), "vn", slug_)
         write(path, page(U(path), f"{v['name']}, Vietnam: population, jobs, new businesses and revenue | Where Money Moves",
                          first_sentences(summary + (f" Formed in 2025 from {', '.join(v['former'])}." if merged else "")),
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/"), (v["name"], path)],
@@ -1648,6 +1686,7 @@ def main():
     <ol class="dlist">{"".join(mdrow(m, d, d["income_growth"]) for m, d in inc_down)}</ol></div>
 </section>
 """
+    CARDS[U("/malaysia/")] = {"map": "my"}
     write("/malaysia/", page(U("/malaysia/"), "Malaysia's states ranked by population, jobs and GDP growth | Where Money Moves",
                              "All 13 Malaysian states and 3 federal territories ranked on population, employment and real GDP growth, with every district's population.",
                              explorer, meta, crumbs=[("Southeast Asia", "/"), ("Malaysia", "/malaysia/")], extra_head=import_map()))
@@ -1732,6 +1771,8 @@ def main():
 <nav class="others" aria-label="Other states"><h2>Other states with high momentum</h2><ul class="chips">{"".join(f'<li><a href="{U(m_url(o))}">{esc(o["name"])}</a></li>' for o in near)}</ul></nav>
 """
         path = m_url(m)
+        card(path, f"{kind[0].upper() + kind[1:]} of Malaysia", m["name"], m["native"],
+             f"{ordinal(m['rank'])} of 16 on momentum" if m.get("rank") else "", lens_stats(m, ["people", "jobs", "money"]), "my", slug_)
         write(path, page(U(path), f"{m['name']}, Malaysia: population, jobs and GDP growth | Where Money Moves",
                          first_sentences(summary), body, meta,
                          crumbs=[("Southeast Asia", "/"), ("Malaysia", "/malaysia/"), (m["name"], path)],
@@ -1767,6 +1808,7 @@ def main():
   <div class="tablewrap"><table class="rank" data-sortable><thead><tr>{hhead}</tr></thead><tbody>{hrows}</tbody></table></div>
 </section>
 """
+    CARDS[U("/philippines/")] = {"map": "ph"}
     write("/philippines/", page(U("/philippines/"), "Philippine provinces ranked by population and GDP growth | Where Money Moves",
                                 f"All {len(H)} Philippine provinces, with their cities, ranked on census population growth and real GDP growth.",
                                 explorer, meta, crumbs=[("Southeast Asia", "/"), ("Philippines", "/philippines/")], extra_head=import_map()))
@@ -1828,6 +1870,8 @@ def main():
 <nav class="others" aria-label="Nearby provinces"><h2>{"Elsewhere in " + esc(h["region"]) if near else "Other provinces"}</h2><ul class="chips">{"".join(f'<li><a href="{U(h_url(o))}">{esc(o["name"])}</a></li>' for o in (near or sorted(H.values(), key=lambda o: -(o["score"] or 0))[:8]))}</ul></nav>
 """
         path = h_url(h)
+        card(path, f"Province of the Philippines, {h['region']}", h["name"], "",
+             f"{ordinal(h['rank'])} of {n} on momentum" if h.get("rank") else "", lens_stats(h, ["people", "money"]), "ph", slug_)
         write(path, page(U(path), f"{h['name']}, Philippines: population and GDP growth | Where Money Moves",
                          first_sentences(summary), body, meta,
                          crumbs=[("Southeast Asia", "/"), ("Philippines", "/philippines/"), (h["name"], path)],
@@ -1910,6 +1954,8 @@ def main():
         body = (f'<section class="hero"><h1>{esc(title)}</h1><p class="lede">{esc(desc)}</p></section>'
                 f'<section><div class="tablewrap"><table class="rank" data-sortable><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div></section>')
         path = f"/rankings/{key}/"
+        CARDS[U(path)] = {"kicker": "Ranking", "map": next((m for pre, m in (("thailand", "th"), ("vietnam", "vn"), ("malaysia", "my"),
+                                                                            ("philippines", "ph")) if key.startswith(pre)), "sea")}
         write(path, page(U(path), f"{title} | Where Money Moves", desc, body, meta,
                          crumbs=[("Southeast Asia", "/"), ("Rankings", "/rankings/"), (title, path)]))
         rk_index.append((path, title, desc))
@@ -2099,6 +2145,93 @@ def main():
             + "".join(f'<section class="prose reveal"><h2>{esc(h)}</h2><p>{esc(b)}</p></section>' for h, b in sections))
     write("/about/", page(U("/about/"), "Method and sources | Where Money Moves", "How Where Money Moves measures people, jobs, businesses and money across Southeast Asia.",
                           body, meta, crumbs=[("Southeast Asia", "/"), ("Method", "/about/")]))
+
+    # ── share images: one card per page. The template holds every locator map once; tools/og_images.mjs photographs
+    # it 1200×630 for each entry of og-data.json. Not linked, not in the sitemap, not indexed.
+    og_maps = {"sea": sea_map(interactive=False), "th": th_map(mini=True), "vn": vn_map(mini=True),
+               "my": my_map(mini=True), "ph": ph_map(mini=True)}
+    (OUT / "og").mkdir(exist_ok=True)
+    (OUT / "og" / "og-data.json").write_text(json.dumps(list(CARDS.values()), ensure_ascii=False, separators=(",", ":")))
+    (OUT / "og" / "index.html").write_text(f"""<!doctype html>
+<html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="robots" content="noindex">
+<title>Share cards</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..750&family=Inter:wght@400..700&family=Noto+Sans+Thai:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer&family=Noto+Sans+Lao&family=Noto+Sans+Myanmar&text={NATIVE_GLYPHS}&display=swap">
+<link rel="stylesheet" href="{U('/assets/app.css')}?v={meta['build_id']}">
+<style>
+  html, body {{ margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--paper); }}
+  .card {{ position: relative; width: 1200px; height: 630px; display: grid; grid-template-columns: 1fr 440px; }}
+  .words {{ display: grid; grid-template-rows: auto 1fr auto; padding: 56px 0 52px 64px; min-width: 0; }}
+  .brand {{ display: flex; align-items: center; gap: 12px; font: 700 24px var(--display); letter-spacing: -0.02em; color: var(--ink); }}
+  .brand img {{ width: 34px; height: 34px; }}
+  .mid {{ align-self: center; display: grid; gap: 14px; padding-right: 40px; min-width: 0; }}
+  .kicker {{ font: 500 24px var(--body); color: var(--muted); }}
+  h1 {{ margin: 0; font: 750 92px/0.98 var(--display); letter-spacing: -0.04em; color: var(--ink); white-space: nowrap; min-width: 0; overflow: hidden; }}
+  h1.long {{ white-space: normal; text-wrap: balance; }}
+  .native {{ font: 400 34px var(--native); color: var(--muted); margin: 0; display: block; }}
+  .rank {{ font: 600 28px var(--body); color: var(--current); }}
+  .line {{ font: 400 28px/1.35 var(--body); color: var(--muted); max-width: 640px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
+  .nums {{ display: flex; gap: 36px; }}
+  .nums div {{ display: grid; gap: 2px; }}
+  .nums span {{ font: 500 20px var(--body); color: var(--muted); }}
+  .nums b {{ font: 700 40px var(--display); letter-spacing: -0.03em; color: var(--ink); }}
+  .nums b.up {{ color: var(--current); }} .nums b.down {{ color: var(--ebb); }}
+  .sea {{ background: var(--sea); display: grid; place-items: center; padding: 36px; }}
+  .sea svg {{ width: 100% !important; height: 100% !important; max-width: 368px; max-height: 558px !important; display: none; }}
+  .sea .map.sea {{ max-width: none; }}
+  .sea circle.ring {{ display: block !important; fill: none; stroke: var(--current); stroke-width: 2.5; vector-effect: non-scaling-stroke; }}
+  .sea svg.show {{ display: block; }}
+  .sea .map.mini path, .sea .map.sea .units path, .sea .map.sea .units .dot {{ fill: color-mix(in srgb, var(--ink) 16%, var(--sea)); stroke: var(--sea); }}
+  .sea .map.mini path.on, .sea .map.sea .on path, .sea .map.sea .on .dot {{ fill: var(--current); }}
+  .sea .map.sea .sea-bg, .sea .map.sea .grat, .sea .map.sea .labels, .sea .map.sea .coords {{ display: none; }}
+  .sea .map.sea .ctx path {{ fill: color-mix(in srgb, var(--ink) 7%, var(--sea)); stroke: none; }}
+  .sea .map.mini circle {{ display: none; }}
+</style></head>
+<body><div class="card">
+  <div class="words">
+    <div class="brand"><img src="{U('/assets/icon.svg')}" alt="">Where Money Moves</div>
+    <div class="mid"><div class="kicker"></div><h1></h1><span class="native"></span><div class="rank"></div><p class="line"></p></div>
+    <div class="nums"></div>
+  </div>
+  <div class="sea">{"".join(svg.replace("<svg ", f'<svg data-map="{k}" ', 1) for k, svg in og_maps.items())}</div>
+</div>
+<script>
+window.ogReady = (async () => {{
+  window.CARDS = await (await fetch("og-data.json")).json();
+  await document.fonts.ready;
+  return CARDS.length;
+}})();
+window.card = (i) => {{
+  const c = CARDS[i], $ = (s) => document.querySelector(s);
+  $(".kicker").textContent = c.kicker || "";
+  const h = $("h1"); h.textContent = c.title; h.className = ""; h.style.fontSize = "";      // each card starts at full size
+  for (let px = 92; px > 52 && h.scrollWidth > h.clientWidth; px -= 4) h.style.fontSize = px + "px";
+  if (h.scrollWidth > h.clientWidth) {{ h.className = "long"; }}
+  $(".native").textContent = c.native && c.native !== c.title ? c.native : "";
+  $(".rank").textContent = c.rank || "";
+  $(".line").textContent = c.stats && c.stats.length ? "" : (c.line || "");
+  $(".nums").replaceChildren(...(c.stats || []).map(([k, v, t]) => {{
+    const d = document.createElement("div"); d.innerHTML = "<span></span><b></b>";
+    d.firstChild.textContent = k; d.lastChild.textContent = v; d.lastChild.className = t || ""; return d; }}));
+  document.querySelectorAll("[data-map]").forEach((m) => m.classList.toggle("show", m.dataset.map === c.map));
+  document.querySelectorAll(".on").forEach((e) => e.classList.remove("on"));
+  document.querySelectorAll("circle.ring").forEach((e) => e.remove());
+  const svg = document.querySelector(`[data-map="${{c.map}}"]`);
+  const hit = c.hl ? svg.querySelector(`[data-k="${{c.hl}}"]`) : null;
+  if (hit) {{
+    hit.classList.add("on");
+    // a place too small to see at this size gets a ring (Bangkok, Metro Manila, Putrajaya, Singapore…)
+    const b = hit.getBBox(), vb = svg.viewBox.baseVal, scale = svg.getBoundingClientRect().width / vb.width;
+    if (Math.max(b.width, b.height) * scale < 26) {{
+      const r = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      r.setAttribute("class", "ring"); r.setAttribute("cx", b.x + b.width / 2); r.setAttribute("cy", b.y + b.height / 2);
+      r.setAttribute("r", 18 / scale); svg.append(r);
+    }}
+  }}
+  return c.key;
+}};
+</script></body></html>
+""")
 
     # ── search index, manifest, sw, sitemap, 404
     idx = ([{"n": r["name"], "a": r["native"], "u": U(c_url(r)), "k": "Country"} for r in Rv]
