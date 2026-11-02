@@ -460,3 +460,14 @@ dialog#cmdk[open] .cmdk-box { animation: pop .18s var(--ease); }
   .ctabs::-webkit-scrollbar { display: none; }
   .ctabs [role="tab"] { flex: none; }
 }
+
+/* where-it-sits strip under each lens headline: the layer in grey, this place in ink (build.py strip()) */
+.strip { margin: 2px 0 6px; display: grid; gap: 2px; }
+.strip figcaption { font-size: 12px; color: var(--muted); }
+.strip svg { display: block; width: 100%; height: auto; overflow: visible; }
+.strip .axis { stroke: var(--line); stroke-width: 1; }
+.strip .zero { stroke: color-mix(in srgb, var(--ink) 30%, transparent); stroke-width: 1; }
+.strip circle.o { fill: color-mix(in srgb, var(--ink) 24%, var(--paper)); stroke: var(--paper); stroke-width: 2; }
+.strip circle.o.hot { fill: var(--muted); }
+.strip circle.me { fill: var(--ink); stroke: var(--paper); stroke-width: 2.5; }
+.strip text { font: 500 13px var(--body); fill: var(--muted); font-variant-numeric: tabular-nums; }

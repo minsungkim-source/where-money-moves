@@ -78,6 +78,46 @@ def pct(x, digits=1) -> str:
     return s.replace("-", "−")
 
 
+def strip(points, mine, caption) -> str:
+    """Where one place sits among its whole layer, on the lens's own scale: every other place a grey dot, this one in
+    ink. Dots that would overlap stack outwards from the centre line (a beeswarm), so close values never hide each
+    other. Only the extremes and zero are labelled; app.js gives the nearest dot a tooltip."""
+    pts = [(n, v) for n, v in points if v is not None]
+    me = next((v for n, v in pts if n == mine), None)
+    if len(pts) < 3 or me is None:
+        return ""
+    W, L, R, r, d = 420, 10, 10, 4, 9.5                 # r ≥ 4: an 8px marker; d: centre spacing with a 1.5px gap
+    lo, hi = min(v for _, v in pts), max(v for _, v in pts)
+    X = lambda v: L + (v - lo) / ((hi - lo) or 1) * (W - L - R)
+    placed = [(X(me), 0.0)]                              # this place sits on the centre line; the rest dodge around it
+    dots = []
+    for n, v in sorted(((n, v) for n, v in pts if n != mine), key=lambda p: abs(p[1] - me)):
+        x = X(v)
+        for k in range(60):
+            y = ((k + 1) // 2) * d * (1 if k % 2 else -1)
+            if all((x - px) ** 2 + (y - py) ** 2 >= d * d for px, py in placed):
+                break
+        placed.append((x, y))
+        dots.append((n, v, x, y))
+    # a tight cluster would stack into a tower: past five rows each side, squeeze the stack (the rings keep dots apart)
+    tallest = max(abs(y) for _, y in placed)
+    if tallest > 5 * d:
+        dots = [(n, v, x, y * 5 * d / tallest) for n, v, x, y in dots]
+        tallest = 5 * d
+    reach = tallest + r + 3
+    mid, H = reach, 2 * reach + 18
+    zero = (f'<line class="zero" x1="{X(0):.1f}" x2="{X(0):.1f}" y1="2" y2="{H - 16:.1f}"/>'
+            f'<text x="{X(0):.1f}" y="{H - 3:.1f}" text-anchor="middle">0</text>') if lo < 0 < hi and 56 < X(0) < W - 56 else ""
+    marks = "".join(f'<circle class="o" cx="{x:.1f}" cy="{mid + y:.1f}" r="{r}" data-n="{esc(n)}" data-v="{esc(pct(v))}"/>'
+                    for n, v, x, y in dots)
+    return (f'<figure class="strip"><figcaption>{esc(caption)}</figcaption>'
+            f'<svg viewBox="0 0 {W} {H:.0f}" role="img" aria-label="{esc(f"{mine} {pct(me)}. {caption}: lowest {pct(lo)}, highest {pct(hi)}")}">'
+            f'<line class="axis" x1="{L}" x2="{W - R}" y1="{mid:.1f}" y2="{mid:.1f}"/>{zero}{marks}'
+            f'<circle class="me" cx="{X(me):.1f}" cy="{mid:.1f}" r="6" data-n="{esc(mine)}" data-v="{esc(pct(me))}"/>'
+            f'<text x="{L}" y="{H - 3:.1f}">{esc(pct(lo))}</text><text x="{W - R}" y="{H - 3:.1f}" text-anchor="end">{esc(pct(hi))}</text>'
+            f'</svg></figure>')
+
+
 def big(x, unit="") -> str:
     if x is None:
         return "–"
@@ -814,6 +854,16 @@ def lens_panel(k, headline, unit_label, rank_txt, rows, chart_html="", note=""):
             + chart_html + (f'<p class="note">{esc(note)}</p>' if note else "") + "</section>")
 
 
+def with_strips(panels: str, strips: dict) -> str:
+    """Put each lens's where-it-sits strip under its headline number."""
+    for k, html_ in strips.items():
+        at = panels.find(f'data-k="{k}"')
+        end = panels.find("</p>", at) + 4 if at >= 0 else -1
+        if html_ and end > 3:
+            panels = panels[:end] + html_ + panels[end:]
+    return panels
+
+
 def tone_from(s: str) -> str:
     return "up" if s.startswith("+") else ("down" if s.startswith("−") else "")
 
@@ -1318,6 +1368,7 @@ def main():
             deep = (f'<section class="callout quiet reveal"><h2>Subnational data for {esc(r["name"])}</h2>'
                     f'<p>Not yet. Country-level figures above are from the World Bank. Provinces arrive country by country: Thailand, Vietnam, Malaysia and the Philippines so far.</p></section>')
         others = "".join(f'<li><a href="{U(c_url(o))}">{esc(o["name"])}</a></li>' for o in sorted(Rv, key=lambda o: o["name"]) if o is not r)
+        panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in Rv], r["name"], "Among the 11 countries") for k in lens_keys})
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(r['name'])} {native(r['native'], lang)}</h1>
@@ -1436,6 +1487,7 @@ def main():
         elif t["money"] is None:
             extra += " No district here has four commercial banks, so there are no bank figures."
         summary = brief(t, "th", 77, "Thai provinces", extra)
+        panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in T.values()], t["name"], f"Among Thailand's {sum(1 for o in T.values() if o[k] is not None)} provinces with a figure" if k == "money" else "Among Thailand's 77 provinces") for k in lens_keys})
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(t['name'])} {native(t['native'])}</h1>
@@ -1614,6 +1666,7 @@ def main():
                 top = max(fb, key=lambda x: x[1])
                 extra += f" Of its former provinces, {top[0]} grew new business registrations fastest ({pct(top[1])})."
         summary = brief(v, "vn", 34, "Vietnamese provinces", extra.strip())
+        panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in V.values()], v["name"], "Among Vietnam's 34 provinces") for k in lens_keys})
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(v['name'])} {native(v['native'], 'vi')}</h1>
@@ -1760,6 +1813,7 @@ def main():
             extra += " With so few people, single-year changes swing widely; read them with care."
         summary = brief(m, "my", 16, "Malaysian states and federal territories", extra.strip())
         near = sorted([o for o in M.values() if o is not m], key=lambda o: -(o["score"] or 0))[:8]
+        panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in M.values()], m["name"], "Among Malaysia's 16 states and federal territories") for k in ("people", "jobs", "money")})
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(m['name'])} {native(m['native'], 'ms')}</h1>
@@ -1859,6 +1913,7 @@ def main():
             extra += " With so few people, single-year changes swing widely; read them with care."
         summary = brief(h, "ph", n, "Philippine provinces", extra)
         near = sorted([o for o in H.values() if o["region"] == h["region"] and o is not h], key=lambda o: -(o["score"] or 0))[:8]
+        panels = with_strips(panels, {k: strip([(o["name"], o[k]) for o in H.values()], h["name"], f"Among the Philippines' {len(H)} provinces") for k in ("people", "money")})
         body = f"""
 <section class="hero detail">
   <div><h1>{esc(h['name'])}</h1>

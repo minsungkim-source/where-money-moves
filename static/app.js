@@ -212,6 +212,33 @@
     if (h && h[1] === (scope.id || "map") && LENS_NAME[h[2]]) set(h[2], true);
   });
 
+  // ── where-it-sits strips: the dot nearest the pointer (within 14 units) names itself in the tooltip.
+  // Nearest-point rather than per-dot targets, because the dots are 8px and packed; the values stay in the tables.
+  $$(".strip svg").forEach(function (svg) {
+    var dots = $$("circle[data-n]", svg), hot = null, tipEl = $(".tip");
+    function clear() { if (hot) hot.classList.remove("hot"); hot = null; if (tipEl) tipEl.hidden = true; }
+    svg.addEventListener("pointermove", function (e) {
+      var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+      var p = pt.matrixTransform(svg.getScreenCTM().inverse()), best = null, bd = 196;
+      dots.forEach(function (c) {
+        var dx = c.cx.baseVal.value - p.x, dy = c.cy.baseVal.value - p.y, dd = dx * dx + dy * dy;
+        if (dd < bd) { bd = dd; best = c; }
+      });
+      if (!best) { clear(); return; }
+      if (best !== hot) {
+        clear(); hot = best;
+        if (!hot.classList.contains("me")) hot.classList.add("hot");
+        var b = document.createElement("b"); b.textContent = hot.dataset.v;
+        var n = document.createElement("span"); n.textContent = hot.dataset.n;
+        tipEl.replaceChildren(b, n);
+      }
+      tipEl.hidden = false;
+      tipEl.style.left = Math.min(innerWidth - 110, Math.max(110, e.clientX)) + "px";
+      tipEl.style.top = e.clientY + "px";
+    });
+    svg.addEventListener("pointerleave", clear);
+  });
+
   // ── map tooltip (pointer) and tap sheet (touch)
   var tip = $(".tip"), canHover = matchMedia("(hover: hover)").matches;
   function tipHTML(d, lens) {
