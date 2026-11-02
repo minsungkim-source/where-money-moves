@@ -97,6 +97,13 @@ Interactive layer (`static/app.js`, progressive enhancement):
 - Theme toggle (system / dark / light), reading progress, view transitions, speculation-rules prerender
 - PWA manifest and service worker (https only)
 
+- **3D view** on the Thailand and Vietnam explorers (`static/map3d.js`, three.js 0.169.0 self-hosted in
+  `static/vendor/`, MIT): provinces extruded to their rank on the selected lens; loads only when "3D" is pressed
+- **Film** `/film/` (`static/film.js`): a 43-second data film drawn in code, directed with the
+  [Lemo-Opuscar](https://github.com/lemomo-ai/lemo-opuscar) method (Data Storytelling grammar). Captions and subjects are
+  chosen from the data at build time; Web Audio sonification; `window.wmmFilmRender(t)` renders any frame for export.
+  Treatment and credits: `docs/film/`
+
 Design notes live at the top of `static/app.css`. Project skills used while building are in `.claude/skills/`
 (frontend-design, accessibility, seo, performance, programmatic-seo), each with its licence and `SOURCE.md`.
 

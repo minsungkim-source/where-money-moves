@@ -1,0 +1,10 @@
+Where the money moved — credits
+
+Method: Lemo-Opuscar (github.com/lemomo-ai/lemo-opuscar), MIT — directing and style guides read for reference;
+        no code, samples or assets from it are used.
+Picture: drawn on a Canvas 2D context by static/film.js (this repository, MIT).
+Sound:  synthesised in the browser with the Web Audio API (no samples).
+Type:   Bricolage Grotesque and Inter (SIL Open Font License), served by Google Fonts.
+Data:   World Bank WDI (CC BY 4.0); Thailand Social Security Office and Department of Provincial Administration
+        (Open Data Common); Bank of Thailand district deposits and credit (attribution, aggregate publication).
+Map:    Thailand provinces, geoBoundaries / OCHA (CC BY 3.0 IGO).

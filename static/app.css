@@ -385,3 +385,18 @@ dialog#cmdk[open] .cmdk-box { animation: pop .18s var(--ease); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* film */
+.film-link { margin-top: 6px; }
+.film-link svg { fill: currentColor; stroke: none; }
+.film { display: grid; gap: 12px; margin-top: -24px; }
+.film-stage { position: relative; border-radius: var(--r-3); overflow: hidden; border: 1px solid var(--line); background: var(--paper); }
+.film-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.film-cap { position: absolute; left: 7%; right: 7%; bottom: 5%; margin: 0; padding-top: 10px; border-top: 1px solid var(--line);
+  font: 500 clamp(14px, 2.1vw, 26px)/1.35 var(--body); color: var(--ink); min-height: 1.4em; }
+.film-controls { display: flex; align-items: center; gap: 16px; }
+.film-mute { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); }
+.film-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.film-bar i { display: block; height: 100%; width: 0; background: var(--current); }
+.transcript { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 6px; }
+.transcript .num { color: var(--muted); margin-right: 10px; }

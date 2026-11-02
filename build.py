@@ -903,6 +903,7 @@ def main():
 <section class="hero">
   <h1>See where people, jobs, businesses and money are moving across Southeast&nbsp;Asia.</h1>
   <p class="lede">Eleven countries and {big(sea_pop)} people, ranked on four kinds of movement from public data. Thailand goes down to province and district, updated monthly from its central bank.</p>
+  <a class="btn ghost film-link" href="{U('/film/')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg><span>Watch the 40-second film</span></a>
 </section>
 <section class="atlas" id="atlas">
   <div class="atlas-map">
@@ -1289,6 +1290,76 @@ def main():
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/"), (v["name"], path)],
                          watch={"id": f"v-{slug_}", "name": f"{v['name']}, Vietnam", "url": U(path)}))
 
+    # ── FILM: "Where the money moved", drawn in code (static/film.js). Every caption is computed here from the data,
+    # so the film stays true when a new month arrives; the beats pick their subjects (the province that added the
+    # most jobs, the district first on money momentum) rather than naming them by hand.
+    home = R["THA"]
+    bkk = T["10"]
+    gain = {k: t["insured"] - dict(t["ins_series"])[sso["years"][-2]] for k, t in T.items()}
+    east_id = max(gain, key=gain.get)
+    east = T[east_id]
+    top_d = min((d for d in D if d.get("score") is not None), key=lambda d: d["rank"])
+    weak = max(((k, home[k + "_rank"]) for k in lens_keys if home.get(k + "_rank")), key=lambda x: x[1])
+
+    def centroid(rings):
+        big_ring = max(rings, key=len)
+        xs, ys = [p[0] for p in big_ring], [p[1] for p in big_ring]
+        return (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+
+    film = {
+        "duration": 43.0,
+        "question": "Where is the money moving in Southeast Asia?",
+        "countries": [{"n": r["name"], "s": round(r["score"], 1), "home": r["iso"] == "THA"}
+                      for r in sorted(Rv, key=lambda r: -(r["score"] or 0))],
+        "thai": {"viewBox": [round(TW), round(TH)], "provinces": [
+            {"n": t["name"], "d": th_mini[k], "cx": round(centroid(th_rings[k])[0], 1), "cy": round(centroid(th_rings[k])[1], 1),
+             "s": round(t["score"] or 0, 1), "rank": t.get("rank") or 77,
+             "role": "bkk" if k == "10" else "east" if k == east_id else ""}
+            for k, t in T.items() if k in th_mini]},
+        "district": {"n": top_d["name_en"], "prov": T[top_d["prov"]]["name"], "dep": pct(top_d["dep_yoy"])},
+        "notes": {"bkk": ["Bangkok", (f"{bkk['br_change']:+d} bank branches".replace("-", "−") if bkk["br_change"]
+                                      else f"employers {pct(bkk['biz'])}")],
+                  "east": [east["name"], f"+{gain[east_id]:,} formal jobs"]},
+        "endline": "See every country, province and district",
+    }
+    caps = [
+        (3.4, 8.4, "11 countries. Four kinds of movement."),
+        (8.9, 12.2, f"{home['name']}: {ordinal(home['rank'])} of 11."),
+        (12.4, 16.6, "But averages hide where money goes."),
+        (16.8, 21.4, (f"Bangkok closed {abs(bkk['br_change'])} bank branches in a year." if (bkk["br_change"] or 0) < 0
+                      else f"Bangkok: registered employers {pct(bkk['biz'])} in a year.")),
+        (21.6, 26.6, f"{east['name']} added {gain[east_id]:,} formal jobs."),
+        (26.8, 33.2, "Now rank all 77 provinces by momentum."),
+        (33.4, 38.4, f"{top_d['name_en']}, {T[top_d['prov']]['name']}: deposits {pct(top_d['dep_yoy'])} in a year."),
+        (38.6, 43.0, "Every country, province and district, on the site."),
+    ]
+    film["captions"] = [list(c) for c in caps]
+    sources = [f"World Bank WDI, {home['money_year']}", f"Social Security Office, Dec {sso['years'][-1]}",
+               f"Bank of Thailand district table, {month_label(latest)}"]
+    transcript = "".join(f"<li><span class=\"num\">{int(a) // 60}:{int(a) % 60:02d}</span> {esc(txt)}</li>" for a, b, txt in caps)
+    body = f"""
+<section class="hero"><h1>Where the money moved</h1>
+<p class="lede">A 43-second film drawn in code from this site's data. Every bar, province and number on screen is real; the captions are written from the latest figures each time the site is built.</p></section>
+<section id="film" class="film">
+  <div class="film-stage"><canvas width="1920" height="1080" role="img" aria-label="Animated chart film. The transcript below has every line."></canvas>
+    <p class="film-cap" aria-hidden="true"></p></div>
+  <div class="film-controls">
+    <button type="button" class="btn film-play">Play</button>
+    <label class="film-mute"><input type="checkbox" data-mute> Mute</label>
+    <span class="film-bar" aria-hidden="true"><i></i></span>
+  </div>
+</section>
+<section class="prose reveal"><h2>Transcript</h2><ol class="transcript">{transcript}</ol></section>
+<section class="prose reveal"><h2>How it was made</h2>
+<p>Directed with the method of <a href="https://github.com/lemomo-ai/lemo-opuscar">Lemo-Opuscar</a> (MIT) in its Data Storytelling grammar: the chart is the film, every mark is a real number, transitions are chart operations, and the sound is the data, each mark a pitch from its value, with two silences before the turns. Drawn on a canvas by a single function of time, so it can also be rendered frame by frame to video.</p>
+<p>Data: {esc("; ".join(sources))}. Thailand's provinces: geoBoundaries / OCHA (CC BY 3.0 IGO).</p></section>
+<script type="application/json" id="film-data">{json.dumps(film, ensure_ascii=False)}</script>
+<script src="{U('/assets/film.js')}?v={meta['build_id']}" defer></script>
+"""
+    write("/film/", page(U("/film/"), "Where the money moved: a 43-second film | Where Money Moves",
+                         first_sentences(f"{home['name']} ranks {ordinal(home['rank'])} of 11 Southeast Asian countries on momentum, but inside it money is moving. A 43-second data film drawn in code."),
+                         body, meta, crumbs=[("Southeast Asia", "/"), ("Film", "/film/")]))
+
     # ── RANKINGS
     rk_index = []
 
@@ -1429,7 +1500,8 @@ def main():
            + [{"n": v["name"], "a": v["native"], "u": U(v_url(v)), "k": "Province"} for v in V.values()]
            + [{"n": f, "a": f"now part of {v['name']}", "u": U(v_url(v)), "k": "Former province"}
               for v in V.values() if len(v["former"]) > 1 for f in v["former"] if f != v["native"]]
-           + [{"n": t, "a": "", "u": U(p), "k": "Ranking"} for p, t, _ in rk_index])
+           + [{"n": t, "a": "", "u": U(p), "k": "Ranking"} for p, t, _ in rk_index]
+           + [{"n": "Where the money moved", "a": "a 43-second film", "u": U("/film/"), "k": "Film"}])
     (OUT / "assets" / "search.json").write_text(json.dumps(idx, ensure_ascii=False, separators=(",", ":")))
     (OUT / "manifest.webmanifest").write_text(json.dumps({
         "name": "Where Money Moves", "short_name": "Money Moves", "lang": "en", "start_url": U("/?source=pwa"),
