@@ -90,26 +90,18 @@
     requestAnimationFrame(step);
   }
 
-  // ── reveal (one entrance per section) + count-up + chart line draw.
-  // Web Animations with no fill: if an animation never runs, the element simply stays as authored.
+  // ── count-up on the headline numbers only. Sections no longer fade in: content is there when you arrive, and the
+  // map's arrival below stays the page's one orchestrated moment.
   var EASE = "cubic-bezier(.2,.7,.2,1)";
-  var revealEls = $$(".reveal, .kpi");
-  if ("IntersectionObserver" in window && !reduced && Element.prototype.animate) {
+  if ("IntersectionObserver" in window && !reduced) {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
         if (!en.isIntersecting) return;
-        var el = en.target;
-        io.unobserve(el);
-        if (en.boundingClientRect.top < innerHeight * 0.9 && performance.now() < 600) return;   // already on screen at load
-        el.animate([{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }], { duration: 650, easing: EASE });
-        $$("[data-count]", el).forEach(countUp);
-        if (el.matches("[data-count]")) countUp(el);
-        $$(".chart .ln", el).forEach(function (p) {
-          p.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 1300, easing: EASE });
-        });
+        io.unobserve(en.target);
+        $$("[data-count]", en.target).forEach(countUp);
       });
-    }, { rootMargin: "0px 0px -6% 0px", threshold: 0.06 });
-    revealEls.forEach(function (el) { io.observe(el); });
+    }, { threshold: 0.3 });
+    $$(".kpis").forEach(function (el) { io.observe(el); });
   }
 
   // ── the SEA map's one orchestrated moment: countries arrive in momentum order
@@ -130,6 +122,38 @@
     ink.style.width = sel.offsetWidth + "px";
     ink.style.transform = "translateX(" + sel.offsetLeft + "px)";
   }
+  // ── the home page's four countries share one place: a tab per country (no JS: all four, one after another)
+  $$(".countries").forEach(function (box) {
+    var bar = $(".ctabs", box), tabs = $$('[role="tab"]', bar);
+    var panels = tabs.map(function (t) { return document.getElementById(t.dataset.for); });
+    function show(i, focus) {
+      tabs.forEach(function (t, j) {
+        t.setAttribute("aria-selected", String(i === j));
+        t.tabIndex = i === j ? 0 : -1;
+        panels[j].hidden = i !== j;
+      });
+      $$(".lenses", panels[i]).forEach(placeInk);          // the lens ink was measured while hidden
+      bar.scrollLeft = Math.max(0, tabs[i].offsetLeft - bar.offsetLeft - 16);   // on a phone the row scrolls: keep the choice in view
+      if (focus) tabs[i].focus();
+    }
+    tabs.forEach(function (t, i) {
+      t.id = "tab-" + t.dataset.for;
+      t.setAttribute("aria-controls", t.dataset.for);
+      panels[i].setAttribute("role", "tabpanel");
+      panels[i].setAttribute("aria-labelledby", t.id);
+      t.addEventListener("click", function () { show(i); history.replaceState(null, "", "#" + t.dataset.for); });
+      t.addEventListener("keydown", function (e) {
+        var k = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+        if (k) { e.preventDefault(); show((i + k + tabs.length) % tabs.length, true); }
+      });
+    });
+    bar.hidden = false;
+    box.classList.add("tabbed");
+    function fromHash() { return tabs.findIndex(function (t) { return "#" + t.dataset.for === location.hash; }); }
+    show(Math.max(0, fromHash()));
+    addEventListener("hashchange", function () { var i = fromHash(); if (i >= 0) show(i); });   // e.g. a link to /#vietnam
+  });
+
   // dataset keys: data-r-people → dataset.rPeople
   function key(prefix, lens) { return prefix + lens.charAt(0).toUpperCase() + lens.slice(1); }
   function flip(list, lens) {

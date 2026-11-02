@@ -32,8 +32,9 @@
 @view-transition { navigation: auto; }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* a component's display: grid must never un-hide it (tabs, tooltips, lists) */
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.55 var(--body); font-feature-settings: "tnum" 1, "cv11" 1; }
+body { margin: 0; overflow-x: clip; background: var(--paper); color: var(--ink); font: 400 16px/1.55 var(--body); font-feature-settings: "tnum" 1, "cv11" 1; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 :focus-visible { outline: 2.5px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.08; margin: 0; }
@@ -101,6 +102,19 @@ main > * { min-width: 0; }
 .hero h1 { font-size: clamp(36px, 6.2vw, 76px); font-weight: 750; letter-spacing: -0.035em; line-height: .98; font-variation-settings: "opsz" 96; text-wrap: balance; }
 .hero .lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); max-width: 44rem; text-wrap: pretty; }
 .hero .lede a { color: var(--ink); }
+.hero.home { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: end; gap: 20px 48px; max-width: none; padding-top: 28px; }
+.hero.home h1 { font-size: clamp(36px, 4.6vw, 62px); }
+.hero.home .hero-side { display: grid; gap: 12px; padding-bottom: 4px; }
+.hero.home .lede { font-size: clamp(16px, 1.3vw, 18px); }
+@media (max-width: 900px) { .hero.home { grid-template-columns: 1fr; } }
+/* the atlas is the site's one bold surface: a band of open sea from edge to edge, the map and its ranking charted on it */
+.band { position: relative; isolation: isolate; padding: 28px 0 30px; margin-top: 0; }
+.band::before { content: ""; position: absolute; z-index: -1; inset: 0 calc(50% - 50vw); background: var(--sea); }
+.band .mapframe { border-radius: 0; }      /* the map's own graticule is the only grid: real latitudes and longitudes */
+.band .atlas-side { top: 92px; }
+.band .rlist li { border-color: color-mix(in srgb, var(--ink) 12%, transparent); }
+.band .lenses { background: color-mix(in srgb, var(--paper) 88%, transparent); }
+.band .legend { background: color-mix(in srgb, var(--paper) 70%, transparent); padding: 6px 10px; border-radius: 999px; justify-self: start; }
 .hero.detail { grid-template-columns: 1fr auto; align-items: center; max-width: none; gap: 24px; }
 @media (max-width: 640px) { .hero.detail { grid-template-columns: 1fr; } .hero.detail .map.mini { display: none; } .mini-sea { width: 100%; } }
 .hero.detail h1 { font-size: clamp(34px, 5vw, 60px); }
@@ -130,7 +144,7 @@ main > * { min-width: 0; }
   .map .coords { display: none; }
 }
 .hb { fill: var(--null); } .hl { stroke: var(--null-line); stroke-width: 1.1; }   /* the shared #hatch pattern */
-.map.mini { width: 96px; height: 172px; }
+.map.mini { width: 132px; height: auto; max-height: 240px; }
 /* Vietnam: merged provinces are several old shapes in one path, so fills carry no stroke; borders are their own layers */
 .map.vn .units path, .map.ph .units path { stroke: none; }
 .map.vn .units a:hover path, .map.vn .units a:focus-visible path, .map.vn .units a.cur path,
@@ -138,17 +152,18 @@ main > * { min-width: 0; }
 .map.vn .outline, .map.ph .outline { fill: none; stroke: var(--paper); stroke-width: .9; stroke-linejoin: round; pointer-events: none; }
 .map.ph .outline { stroke-width: .6; }
 .map.vn .former { fill: none; stroke: var(--paper); stroke-width: .7; stroke-dasharray: 2 2.4; opacity: .9; pointer-events: none; }
-.map.mini.vn, .map.mini.ph { width: 86px; }
+.map.mini.vn, .map.mini.ph { width: 112px; }
 .mapframe .map.vn, .mapframe .map.ph { max-height: 80vh; width: auto; max-width: 100%; margin: 0 auto; }   /* the country is tall and thin */
 /* Malaysia: wide (peninsula + Borneo, moved closer). The cut between them is marked, and the note says so */
 .map.my .inset { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
 .map.my .inset-note { font: 500 10px var(--body); fill: var(--muted); }
 .map.my .units .dot { stroke: var(--ink); stroke-width: .9; }
-.map.mini.my { width: 190px; height: auto; align-self: center; }
+.map.mini.my { width: 240px; height: auto; align-self: center; }
 @media (max-width: 640px) { .map.my .inset-note { font-size: 20px; } }
-.map.mini path { fill: var(--line); stroke: var(--paper); stroke-width: .8; }
+.map.mini path { fill: color-mix(in srgb, var(--ink) 20%, var(--paper)); stroke: var(--paper); stroke-width: .8; }
 .map.mini path.on { fill: var(--current); }
 .map.mini circle { fill: var(--paper); stroke: var(--ink); stroke-width: .8; }
+.map.mini circle.pin { fill: none; stroke: var(--current); stroke-width: 2.5; }
 .mini-sea { width: min(380px, 42vw); border-radius: var(--r-2); overflow: hidden; }
 .mini-sea .labels, .mini-sea .coords { display: none; }
 .mini-sea .units path, .mini-sea .units .dot { fill: var(--land); }
@@ -330,6 +345,8 @@ tbody tr:hover { background: color-mix(in srgb, var(--ink) 3%, transparent); }
 .prose { max-width: 44rem; display: grid; gap: 10px; }
 .prose p { color: color-mix(in srgb, var(--ink) 82%, var(--paper)); }
 details summary { cursor: pointer; font-weight: 600; }
+.rk-group { display: grid; gap: 4px; }
+.rk-group h2 { font-size: clamp(22px, 2.4vw, 30px); padding-bottom: 6px; }
 .rk-index { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 32px; }
 .rk-index a { display: grid; gap: 4px; padding: 18px 0; border-top: 1px solid var(--line); text-decoration: none; }
 .rk-index b { font-family: var(--display); font-size: 20px; letter-spacing: -0.02em; }
@@ -422,3 +439,24 @@ dialog#cmdk[open] .cmdk-box { animation: pop .18s var(--ease); }
 .film-bar i { display: block; height: 100%; width: 0; background: var(--current); }
 .transcript { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 6px; }
 .transcript .num { color: var(--muted); margin-right: 10px; }
+
+/* home: the four countries behind one row of tabs (app.js adds .tabbed; without JS they stay stacked) */
+.countries { display: grid; gap: 28px; }
+.countries-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
+.countries-head h2 { font-size: clamp(28px, 3.6vw, 44px); }
+.ctabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.ctabs [role="tab"] { display: grid; text-align: left; gap: 0; font: 600 15px/1.2 var(--body); color: var(--ink); background: transparent;
+  border: 1px solid var(--line); border-radius: var(--r-2); padding: 8px 14px; cursor: pointer; }
+.ctabs [role="tab"] small { font-weight: 400; font-size: 12px; color: var(--muted); }
+.ctabs [role="tab"]:hover { border-color: color-mix(in srgb, var(--ink) 35%, transparent); }
+.ctabs [role="tab"][aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.ctabs [role="tab"][aria-selected="true"] small { color: color-mix(in srgb, var(--paper) 75%, transparent); }
+.countries.tabbed .split-head h2 { font-size: 22px; }
+.countries .country + .country { padding-top: 28px; border-top: 1px solid var(--line); }
+.countries.tabbed .country + .country { padding-top: 0; border-top: 0; }
+@media (max-width: 640px) {             /* one row of countries that scrolls, rather than two rows that push the map down */
+  .countries-head { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .ctabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  .ctabs::-webkit-scrollbar { display: none; }
+  .ctabs [role="tab"] { flex: none; }
+}

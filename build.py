@@ -53,6 +53,7 @@ ICON = {  # 24px stroke icons, drawn for this site
     "score": '<path d="M4 17l5-5 4 3 7-8"/><path d="M15 7h5v5"/>',
 }
 SPIKE = 0.5
+ON = ' class="on"'      # the highlighted place on a locator map (quoted: an unquoted on/> reads as 'on/')
 # "no data" fill. Defined once per page in the shell (not per map), so pages with several maps have one #hatch.
 HATCH = ('<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
          '<rect width="5" height="5" class="hb"/><line x1="0" y1="0" x2="0" y2="5" class="hl"/></pattern></defs>')
@@ -922,6 +923,15 @@ def main():
                 f'<rect class="sea-bg" width="{W:.0f}" height="{H:.0f}"/><g class="grat">{grat}</g><g class="ctx">{ctx_paths}</g>'
                 f'<g class="units">{shapes}</g><g class="labels" aria-hidden="true">{labels}</g><g class="coords" aria-hidden="true">{ticks}</g></svg>')
 
+    def pin(rings, limit=26):
+        """A ring around a highlighted place too small to see on a locator map (Bangkok, Metro Manila, Putrajaya)."""
+        pts = [pt for r in rings for pt in r]
+        x0, x1 = min(x for x, _ in pts), max(x for x, _ in pts)
+        y0, y1 = min(y for _, y in pts), max(y for _, y in pts)
+        if max(x1 - x0, y1 - y0) > limit:
+            return ""
+        return f'<circle class="pin" cx="{(x0 + x1) / 2:.1f}" cy="{(y0 + y1) / 2:.1f}" r="{max(x1 - x0, y1 - y0) / 2 + 9:.1f}"/>'
+
     th_rings = thai_rings()
     th_full = {k: path_d(v) for k, v in th_rings.items()}
     th_mini = {k: path_d(v, tol=1.2, min_len=1.5) for k, v in th_rings.items()}
@@ -934,7 +944,7 @@ def main():
             if tis not in th_full:
                 continue
             if mini:
-                shapes += f'<path d="{th_mini[tis]}"{" class=on" if highlight == tis else ""}/>'
+                shapes += f'<path d="{th_mini[tis]}"{ON if highlight == tis else ""}/>'
                 continue
             tip = {"n": t["name"], "a": t["native"], "s": None if t["score"] is None else round(t["score"]),
                    "people": pct(t["people"]), "jobs": pct(t["jobs"]), "biz": pct(t["biz"]), "money": pct(t["money"])}
@@ -947,7 +957,8 @@ def main():
                     x, y = TH_PROJ(d["lon"], d["lat"])
                     dots += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.4"/>'
         if mini:
-            return f'<svg class="map mini" viewBox="0 0 {TW:.0f} {TH:.0f}" aria-hidden="true"><g>{shapes}</g><g class="dots">{dots}</g></svg>'
+            ring = pin(th_rings[highlight]) if highlight in th_rings else ""
+            return f'<svg class="map mini" viewBox="0 0 {TW:.0f} {TH:.0f}" aria-hidden="true"><g>{shapes}</g><g class="dots">{dots}</g>{ring}</svg>'
         return (f'<svg class="map th" data-lens="score" viewBox="0 0 {TW:.0f} {TH:.0f}" role="group" aria-label="Map of Thailand by province">'
                 f'<g class="units">{shapes}</g></svg>')
 
@@ -975,14 +986,14 @@ def main():
         shapes = ""
         for k, v in V.items():
             if mini:
-                shapes += f'<path d="{vn_mini[k]}"{" class=on" if highlight == k else ""}/>'
+                shapes += f'<path d="{vn_mini[k]}"{ON if highlight == k else ""}/>'
                 continue
             tip = {"n": v["name"], "a": v["native"], "s": None if v["score"] is None else round(v["score"]),
                    "people": pct(v["people"]), "jobs": pct(v["jobs"]), "biz": pct(v["biz"]), "money": pct(v["money"])}
             shapes += (f'<a href="{U(v_url(v))}" data-tip=\'{esc(json.dumps(tip, ensure_ascii=False))}\' aria-label="{esc(v["name"])}, momentum {tip["s"]}">'
                        f'<path d="{vn_full[k]}" {lens_attrs(v, lens_keys)}/></a>')
         if mini:
-            return f'<svg class="map mini vn" viewBox="0 0 {VW:.0f} {VH:.0f}" aria-hidden="true"><g>{shapes}</g></svg>'
+            return f'<svg class="map mini vn" viewBox="0 0 {VW:.0f} {VH:.0f}" aria-hidden="true"><g>{shapes}</g>{pin(vn_rings[highlight]) if highlight in vn_rings else ""}</svg>'
         return (f'<svg class="map vn" data-lens="score" viewBox="0 0 {VW:.0f} {VH:.0f}" role="group" aria-label="Map of Vietnam by province (2025 boundaries)">'
                 f'<g class="units">{shapes}</g><path class="former" d="{vn_former}"/><path class="outline" d="{vn_outline}"/></svg>')
 
@@ -1004,7 +1015,7 @@ def main():
         shapes = ""
         for k, m in M.items():
             if mini:
-                shapes += f'<path d="{my_mini[k]}"{" class=on" if highlight == k else ""}/>'
+                shapes += f'<path d="{my_mini[k]}"{ON if highlight == k else ""}/>'
                 continue
             tip = {"n": m["name"], "a": m["native"], "s": None if m["score"] is None else round(m["score"]),
                    "people": pct(m["people"]), "jobs": pct(m["jobs"]), "biz": "–", "money": pct(m["money"])}
@@ -1016,7 +1027,7 @@ def main():
             shapes += (f'<a href="{U(m_url(m))}" data-tip=\'{esc(json.dumps(tip, ensure_ascii=False))}\' aria-label="{esc(m["name"])}, momentum {tip["s"]}">'
                        f'<path d="{my_full[k]}" {attrs}/>{dot}</a>')
         if mini:
-            return f'<svg class="map mini my" viewBox="0 0 {MW:.0f} {MH:.0f}" aria-hidden="true"><g>{shapes}</g></svg>'
+            return f'<svg class="map mini my" viewBox="0 0 {MW:.0f} {MH:.0f}" aria-hidden="true"><g>{shapes}</g>{pin(my_rings[highlight], 40) if highlight in my_rings else ""}</svg>'
         return (f'<svg class="map my" data-lens="score" viewBox="0 0 {MW:.0f} {MH:.0f}" role="group" aria-label="Map of Malaysia by state">'
                 f'<line class="inset" x1="{my_gap:.1f}" y1="8" x2="{my_gap:.1f}" y2="{MH - 8:.1f}"/>'
                 f'<text class="inset-note" x="{my_gap + 8:.1f}" y="20" aria-hidden="true">East Malaysia, drawn closer than it is</text>'
@@ -1039,14 +1050,14 @@ def main():
         shapes = ""
         for k, h in H.items():
             if mini:
-                shapes += f'<path d="{ph_mini[k]}"{" class=on" if highlight == k else ""}/>'
+                shapes += f'<path d="{ph_mini[k]}"{ON if highlight == k else ""}/>'
                 continue
             tip = {"n": h["name"], "a": h["region"], "s": None if h["score"] is None else round(h["score"]),
                    "people": pct(h["people"]), "jobs": "–", "biz": "–", "money": pct(h["money"])}
             shapes += (f'<a href="{U(h_url(h))}" data-tip=\'{esc(json.dumps(tip, ensure_ascii=False))}\' aria-label="{esc(h["name"])}, momentum {tip["s"]}">'
                        f'<path d="{ph_full[k]}" {lens_attrs(h, lens_keys)}/></a>')
         if mini:
-            return f'<svg class="map mini ph" viewBox="0 0 {HW:.0f} {HH:.0f}" aria-hidden="true"><g>{shapes}</g></svg>'
+            return f'<svg class="map mini ph" viewBox="0 0 {HW:.0f} {HH:.0f}" aria-hidden="true"><g>{shapes}</g>{pin(ph_rings[highlight]) if highlight in ph_rings else ""}</svg>'
         return (f'<svg class="map ph" data-lens="score" viewBox="0 0 {HW:.0f} {HH:.0f}" role="group" aria-label="Map of the Philippines by province">'
                 f'<g class="units">{shapes}</g><path class="outline" d="{ph_outline}"/></svg>')
 
@@ -1130,12 +1141,14 @@ def main():
         coverage_rows += (f'<tr><th scope="row"><a href="{U(c_url(r))}">{esc(r["name"])}</a></th>'
                           + "".join(f'<td>{r[k + "_year"] or "–"}</td>' for k in lens_keys) + sub + "</tr>")
     home = f"""
-<section class="hero">
+<section class="hero home">
   <h1>See where people, jobs, businesses and money are moving across Southeast&nbsp;Asia.</h1>
-  <p class="lede">Eleven countries and {big(sea_pop)} people, ranked on four kinds of movement from public data. Thailand, Vietnam, Malaysia and the Philippines go further, province by province and state by state; Thailand down to district, updated monthly from its central bank.</p>
-  <a class="btn ghost film-link" href="{U('/film/')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg><span>Watch the 40-second film</span></a>
+  <div class="hero-side">
+    <p class="lede">Eleven countries and {big(sea_pop)} people, ranked on four kinds of movement from public data. Thailand, Vietnam, Malaysia and the Philippines go further, province by province; Thailand down to district, every month.</p>
+    <a class="btn ghost film-link" href="{U('/film/')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg><span>Watch the 40-second film</span></a>
+  </div>
 </section>
-<section class="atlas" id="atlas">
+<section class="atlas band" id="atlas">
   <div class="atlas-map">
     {lens_tabs(label="Region lens")}
     <a class="skip-map" href="#after-map-1">Skip the map</a><div class="mapframe">{sea_map()}</div><span id="after-map-1" tabindex="-1"></span>
@@ -1149,7 +1162,15 @@ def main():
   </aside>
 </section>
 <section class="kpis">{kpis}</section>
-<section class="split reveal" id="thailand">
+<section class="countries" aria-labelledby="countries-h">
+<div class="countries-head"><h2 id="countries-h">Inside the countries</h2>
+  <div class="ctabs" role="tablist" aria-label="Country" hidden>
+    <button type="button" role="tab" data-for="thailand">Thailand<small>77 provinces</small></button>
+    <button type="button" role="tab" data-for="vietnam">Vietnam<small>34 provinces</small></button>
+    <button type="button" role="tab" data-for="malaysia">Malaysia<small>16 states</small></button>
+    <button type="button" role="tab" data-for="philippines">Philippines<small>{len(H)} provinces</small></button>
+  </div></div>
+<section class="split country" id="thailand">
   <div class="split-head">
     <h2>Inside Thailand</h2>
     <p>77 provinces on all four lenses. People from the civil registry, jobs and employers from social security, money from bank deposits and credit by district.</p>
@@ -1160,7 +1181,7 @@ def main():
     <div class="split-list">{th_lists}</div>
   </div>
 </section>
-<section class="split reveal" id="vietnam">
+<section class="split country" id="vietnam">
   <div class="split-head">
     <h2>Inside Vietnam</h2>
     <p>The 34 provinces formed in 2025, rebuilt from 63 old ones. Population and jobs to 2025, new businesses and enterprise revenue to 2024, from the National Statistics Office.</p>
@@ -1171,7 +1192,7 @@ def main():
     <div class="split-list">{vn_lists}</div>
   </div>
 </section>
-<section class="split reveal" id="malaysia">
+<section class="split country" id="malaysia">
   <div class="split-head">
     <h2>Inside Malaysia</h2>
     <p>The 13 states and 3 federal territories. Population to {mlab['people'][1]}, jobs to {mlab['jobs'][1]} and real GDP to {mlab['money'][1]}, from the Department of Statistics. There is no open business series by state yet, so that lens is left blank.</p>
@@ -1182,7 +1203,7 @@ def main():
     <div class="split-list">{my_lists}</div>
   </div>
 </section>
-<section class="split reveal" id="philippines">
+<section class="split country" id="philippines">
   <div class="split-head">
     <h2>Inside the Philippines</h2>
     <p>{len(H)} provinces, each with the cities inside it, and Metro Manila as one. Population from the 2020 and 2024 censuses, real GDP to {hlab['money'][1]} from the provincial accounts of the Philippine Statistics Authority.</p>
@@ -1192,6 +1213,7 @@ def main():
     <div class="split-map">{lens_tabs(label="Philippines lens")}<a class="skip-map" href="#after-map-8">Skip the map</a><div class="mapframe tall">{ph_map()}</div><span id="after-map-8" tabindex="-1"></span>{legend("the Philippines' provinces")}</div>
     <div class="split-list">{ph_lists}</div>
   </div>
+</section>
 </section>
 <section class="movers reveal">
   <div><h2>Districts gaining money fastest</h2><p class="sub">Deposits, {month_label(y1)} to {month_label(latest)}</p>
@@ -2007,8 +2029,13 @@ def main():
         srt = sorted([h for h in H.values() if h[k] is not None], key=lambda h: -h[k])
         ranking_page(key, title, f"{PH_DESC[k]}, {hlab[k][0]}.", hhead, "".join(hrow(h, i) for i, h in enumerate(srt, 1)))
 
-    body = ('<section class="hero"><h1>Rankings</h1><p class="lede">Every list on the site, as a sortable table.</p></section><ul class="rk-index">'
-            + "".join(f'<li class="reveal"><a href="{U(p)}"><b>{esc(t)}</b><span>{esc(d)}</span></a></li>' for p, t, d in rk_index) + "</ul>")
+    groups = [("Southeast Asia", "southeast-asia"), ("Thailand", "thailand-"), ("Vietnam", "vietnam-"),
+              ("Malaysia", "malaysia-"), ("Philippines", "philippines-")]
+    body = '<section class="hero"><h1>Rankings</h1><p class="lede">Every list on the site, as a sortable table.</p></section>'
+    for gname, prefix in groups:
+        items = [(p, t, d) for p, t, d in rk_index if p.split("/")[2].startswith(prefix)]
+        body += (f'<section class="rk-group"><h2>{esc(gname)}</h2><ul class="rk-index">'
+                 + "".join(f'<li><a href="{U(p)}"><b>{esc(t)}</b><span>{esc(d)}</span></a></li>' for p, t, d in items) + "</ul></section>")
     write("/rankings/", page(U("/rankings/"), "Rankings | Where Money Moves", "Sortable rankings of Southeast Asian countries, Thai provinces and districts, Vietnamese provinces, Malaysian states and Philippine provinces.",
                              body, meta, crumbs=[("Southeast Asia", "/"), ("Rankings", "/rankings/")]))
 
