@@ -78,7 +78,11 @@ export async function chrome(W, H) {
     const exited = new Promise((r) => proc.once("exit", r));
     proc.kill();
     await exited;                                             // Chrome writes to its profile until it has gone
-    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5 });
+    try {                                                     // its helpers can outlive it by a moment (seen on CI): tidy, never fail
+      fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    } catch (e) {
+      console.warn(`  left ${profile}: ${e.code}`);
+    }
   }
   return { send, once, evaluate, open, close };
 }
