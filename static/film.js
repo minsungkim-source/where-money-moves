@@ -170,8 +170,18 @@
       var w = lerp(8, (x1 - x0) / n - 3, k), hh = lerp(8, h, k);
       var out = 1 - span(t, T.close - 0.2, T.close + 0.8);
       ctx.globalAlpha = out;
-      ctx.fillStyle = p.role === "bkk" ? C.ebb : p.role === "east" ? C.current : ramp(p.s);
-      ctx.fillRect(x - w / 2, y - hh, w, hh);
+      if (p.role === "bkk" || p.role === "east") {
+        ctx.fillStyle = p.role === "bkk" ? C.ebb : C.current;
+        ctx.fillRect(x - w / 2, y - hh, w, hh);
+      } else {
+        // the bars' heights already say the rank, so as they land the map colour fades to grey and the two
+        // places the story is about are the only colour left (emphasis, not a second encoding of the same thing)
+        ctx.globalAlpha = out * 0.32; ctx.fillStyle = C.muted;
+        ctx.fillRect(x - w / 2, y - hh, w, hh);
+        ctx.globalAlpha = out * (1 - k); ctx.fillStyle = ramp(p.s);
+        ctx.fillRect(x - w / 2, y - hh, w, hh);
+        ctx.globalAlpha = out;
+      }
       if (k > 0.97 && (p.role === "bkk" || p.role === "east")) {
         ctx.fillStyle = C.ink; ctx.font = "600 26px Inter, sans-serif"; ctx.textAlign = "center";
         ctx.fillText(p.n + "  #" + p.rank, x, y - hh - 18);
