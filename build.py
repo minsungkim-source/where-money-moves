@@ -20,6 +20,7 @@ compare, toasts, theme, share and install. Standard library only, so Vercel / Ac
 
 from __future__ import annotations
 
+import csv
 import html
 import json
 import math
@@ -799,6 +800,20 @@ def main():
     latest, y1 = meta["latest"], meta["yoy_base"]
     R = region_model(wb)
     T, by_prov = thailand_model(P, D, sso, dopa, ctx)
+    # registered population for every district (928), from DOPA's province files split by registry (etl/th_dopa.py)
+    dy = dopa["years"]
+    DP = {}
+    for row in csv.DictReader(open(REF / "thailand-adm2-districts-v1.0.0.csv", encoding="utf-8")):
+        ser = {int(y): v for y, v in dopa.get("districts", {}).get(row["tis1099_district_code"], {}).items() if v is not None}
+        last = dy[-1] if dy[-1] in ser else None
+        DP[row["tis1099_district_code"]] = {
+            "id": row["tis1099_district_code"], "prov": row["parent_province_tis1099_code"], "name_en": row["name_en"], "name_th": row["name_th"],
+            "pop": ser.get(last), "people": growth(ser.get(last), ser.get(dy[-2])) if last else None,
+            "people_5y": growth(ser.get(last), ser.get(dy[0])) if last else None, "series": sorted(ser.items())}
+    for i, x in enumerate(sorted([x for x in DP.values() if x["people"] is not None], key=lambda x: -x["people"]), 1):
+        x["people_rank"] = i
+    nDP = sum(1 for x in DP.values() if x["people"] is not None)
+    page_of = {d["id"]: d for d in D}
     V, vlab = vietnam_model(vn)
     M, mlab, myears = malaysia_model(my)
     H, hlab = philippines_model(ph)
@@ -1335,6 +1350,20 @@ def main():
                       f'<th scope="col" class="num"><button data-k="2">Deposits</button></th><th scope="col" class="num"><button data-k="3">Credit</button></th>'
                       f'<th scope="col" class="num"><button data-k="4">Branches</button></th><th scope="col" class="sp"><span class="sr-only">Trend</span></th></tr></thead>'
                       f'<tbody>{drows}</tbody></table></div></section>')
+        prows = ""
+        for x in sorted([x for x in DP.values() if x["prov"] == tis], key=lambda x: -(x["pop"] or 0)):
+            nm = (f'<a href="{U(d_url(page_of[x["id"]]))}">{esc(x["name_en"])}</a>' if x["id"] in page_of else esc(x["name_en"]))
+            popv = f'{x["pop"]:,}' if x["pop"] else "–"
+            prows += (f'<tr><th scope="row">{nm}{native(x["name_th"])}</th>'
+                      f'<td class="num" data-v="{x["pop"] or ""}">{popv}</td>'
+                      + value_cell(x["people"]) + value_cell(x["people_5y"]) + "</tr>")
+        if prows:
+            dtable += (f'<section class="reveal" id="population"><h2>Population by district</h2>'
+                       f'<p class="sub">Registered population, December {dy[-2]} to December {dy[-1]}, every district in the province. '
+                       f'A district is its own registry office plus the municipal parts of its tambons.</p>'
+                       f'<div class="tablewrap"><table class="rank" data-sortable><thead><tr><th scope="col">District</th>'
+                       f'<th scope="col" class="num"><button data-k="1">Population</button></th><th scope="col" class="num"><button data-k="2">One year</button></th>'
+                       f'<th scope="col" class="num"><button data-k="3">Five years</button></th></tr></thead><tbody>{prows}</tbody></table></div></section>')
         if gone:
             dtable += ('<section class="reveal"><h2>Dropped from the bank table</h2><p class="sub">Fell below four commercial banks during the year.</p><ul class="chips">'
                        + "".join(f'<li><a href="{U(d_url(d))}">{esc(d["name_en"])}</a></li>' for d in gone) + "</ul></section>")
@@ -1386,17 +1415,25 @@ def main():
                 summary += f" {ordinal(d['prov_rank']).capitalize()} in {t['name']} on bank money."
         else:
             summary = "Not in the latest Bank of Thailand table, which lists only districts with four or more commercial banks."
+        dp = DP.get(d["id"], {})
+        if dp.get("people") is not None:
+            summary += (f" Its registered population {'grew' if dp['people'] >= 0 else 'fell'} {pct(abs(dp['people']))[1:]} in {dy[-1]}, "
+                        f"to {dp['pop']:,} ({ordinal(dp['people_rank'])} of {nDP} districts).")
         ser = d["series"]
         mlabel = lambda p: p[:4] if p.endswith("-01") else ""
         charts = (chart([(r[0], r[1] and r[1] / 1e6) for r in ser], "Deposits, million baht", x_label=mlabel, every=1, base=y1)
                   + chart([(r[0], r[2] and r[2] / 1e6) for r in ser], "Credit, million baht", x_label=mlabel, every=1, base=y1)
-                  + chart([(r[0], r[3]) for r in ser], "Bank branches", x_label=mlabel, every=1, base=y1))
+                  + chart([(r[0], r[3]) for r in ser], "Bank branches", x_label=mlabel, every=1, base=y1)
+                  + (chart(dp["series"], "Registered population, December", x_label=str, every=1, kind="dots") if len(dp.get("series") or []) > 1 else ""))
         stats = ((stat("Money momentum", f'{d["score"]:.0f}', f'#{d["rank"]} of {nD} districts') if d.get("score") is not None else "")
                  + stat("Deposits", pct(d["dep_yoy"]), f"{month_label(y1)} to {month_label(latest)}", tone(d["dep_yoy"]))
                  + stat("Credit", pct(d["cr_yoy"]), "Same period", tone(d["cr_yoy"]))
                  + stat("Branches", str(d["branches"]) if d["branches"] is not None else "–", f'{signed_int(d["br_change"])} in a year')
                  + stat("Deposit balance", baht(d["deposits"]), month_label(latest) if d["in_latest"] else "")
-                 + (stat("Deposits over three years", pct(d["dep_3y"]), f"Since {month_label(meta['base_3y'])}", tone(d["dep_3y"])) if d["dep_3y"] is not None else ""))
+                 + (stat("Deposits over three years", pct(d["dep_3y"]), f"Since {month_label(meta['base_3y'])}", tone(d["dep_3y"])) if d["dep_3y"] is not None else "")
+                 + (stat("Registered population", f"{dp['pop']:,}", f"December {dy[-1]}") if dp.get("pop") else "")
+                 + (stat("People", pct(dp["people"]), f"Dec {dy[-2]} to Dec {dy[-1]}", tone(dp["people"])) if dp.get("people") is not None else "")
+                 + (stat("People over five years", pct(dp["people_5y"]), f"Since Dec {dy[0]}", tone(dp["people_5y"])) if dp.get("people_5y") is not None else ""))
         months = "".join(f'<tr><th scope="row">{month_label(r[0])}</th><td class="num">{"–" if r[1] is None else f"{r[1]/1e6:,.0f}"}</td>'
                          f'<td class="num">{"–" if r[2] is None else f"{r[2]/1e6:,.0f}"}</td><td class="num">{"–" if r[3] is None else r[3]}</td></tr>'
                          for r in reversed(ser[-13:]))
@@ -1414,7 +1451,7 @@ def main():
 {f'<nav class="others" aria-label="Other districts"><h2>Other districts in {esc(t["name"])}</h2><ul class="chips">' + "".join(f'<li><a href="{U(d_url(x))}">{esc(x["name_en"])} <span class="{tone(x["dep_yoy"])}">{pct(x["dep_yoy"])}</span></a></li>' for x in sibs) + "</ul></nav>" if sibs else ""}
 """
         path = d_url(d)
-        write(path, page(U(path), f"{d['name_en']}, {t['name']}: bank deposits and credit ({month_label(latest)}) | Where Money Moves",
+        write(path, page(U(path), f"{d['name_en']}, {t['name']}: bank deposits, credit and population | Where Money Moves",
                          first_sentences(f"{d['name_en']}, {t['name']}, Thailand. {summary}"),
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/"), (t["name"], p_url(t)), (d["name_en"], path)],
                          watch={"id": f"d-{d['id']}", "name": f"{d['name_en']}, {t['name']}", "url": U(path)}))
@@ -1873,6 +1910,16 @@ def main():
     ranking_page("thailand-branch-closures", "Thai districts losing bank branches", f"Change in commercial-bank branches, {per}.",
                  head_d, "".join(drank(d, i) for i, d in enumerate(srt, 1)))
 
+    drows = ""
+    for i, x in enumerate(sorted([x for x in DP.values() if x["people"] is not None], key=lambda x: -x["people"]), 1):
+        nm = (f'<a href="{U(d_url(page_of[x["id"]]))}">{esc(x["name_en"])}</a>' if x["id"] in page_of else esc(x["name_en"]))
+        drows += (f'<tr><td class="num pos">{i}</td><th scope="row">{nm}{native(x["name_th"])}<small>{esc(T[x["prov"]]["name"])}</small></th>'
+                  f'<td class="num" data-v="{x["pop"]}">{x["pop"]:,}</td>' + value_cell(x["people"]) + value_cell(x["people_5y"]) + "</tr>")
+    ranking_page("thailand-district-population-growth", "Thai districts by population growth",
+                 f"All {nDP} districts with a figure, registered population December {dy[-2]} to December {dy[-1]}, with five years beside it.",
+                 '<th scope="col" class="num">#</th><th scope="col">District</th><th scope="col" class="num"><button data-k="2">Population</button></th>'
+                 '<th scope="col" class="num"><button data-k="3">One year</button></th><th scope="col" class="num"><button data-k="4">Five years</button></th>', drows)
+
     def vrow(v, pos):
         return (f'<tr><td class="num pos">{pos}</td><th scope="row"><a href="{U(v_url(v))}">{esc(v["name"])}</a>{native(v["native"], "vi")}</th>'
                 f'<td data-v="{round(v["score"], 2) if v["score"] is not None else ""}">{score_pill(v["score"])}</td>'
@@ -1958,7 +2005,7 @@ def main():
         ("The four lenses for countries",
          "People is urban population growth: people moving into cities. Jobs is growth in employed people (labour force × (1 − unemployment), ILO-modelled). Businesses is growth in new limited-liability firms registered (World Bank Entrepreneurship data). Money is real GDP growth. Each uses its own latest year, shown next to the number."),
         ("The four lenses for Thailand",
-         f"People: registered population, Department of Provincial Administration, {base_of['people']} to {asof['people']}. Jobs: employees insured under Section 33 of the Social Security Act, {base_of['jobs']} to {asof['jobs']}. Businesses: employers registered with the Social Security Office, the same period. Money: commercial-bank deposits, Bank of Thailand district table, {base_of['money']} to {asof['money']}."),
+         f"People: registered population, Department of Provincial Administration, {base_of['people']} to {asof['people']}. Jobs: employees insured under Section 33 of the Social Security Act, {base_of['jobs']} to {asof['jobs']}. Businesses: employers registered with the Social Security Office, the same period. Money: commercial-bank deposits, Bank of Thailand district table, {base_of['money']} to {asof['money']}. Districts also carry registered population: DOPA publishes it by registry office, so a district is its own office plus the municipal parts of its tambons, placed with the registry's coded tambon file; districts add up exactly to their province."),
         ("The four lenses for Vietnam",
          f"From the National Statistics Office (formerly GSO). People: average population, {vlab['people'][0]}, with net migration per 1,000 residents alongside. Jobs: employed workers, {vlab['jobs'][0]}. Businesses: newly registered enterprises, {vlab['biz'][0]}. Money: net revenue of active enterprises, {vlab['money'][0]}, nominal. The latest year is often preliminary."),
         ("The lenses for Malaysia",

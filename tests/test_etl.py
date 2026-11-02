@@ -179,6 +179,41 @@ class Dopa(unittest.TestCase):
         self.assertEqual(th_dopa.december_years(date(2026, 10, 27))[-1], 2025)
 
 
+def dopa_file(rows, total):
+    """stat.bora layout: name|…|male|female|total| — only the total matters here."""
+    return "\n".join([f"จังหวัดทดสอบ|0|0|{total}|"] + [f"{n}|0|0|{v}|" for n, v in rows]) + "\n"
+
+
+class DopaDistricts(unittest.TestCase):
+    refs = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.refs = th_dopa.references()
+
+    def test_phatthalung_matches_the_coded_catalog(self):
+        text = (FIX / "dopa-6712cc93-rows.txt").read_text(encoding="utf-8")    # every row, name and totals only
+        got, unplaced = th_dopa.districts(text, "93", self.refs, "fixture")
+        self.assertEqual(unplaced, [])
+        self.assertEqual((got["9304"], got["9309"]), (31324, 26475))    # DOPA catalog stat_t67, by tambon code
+        self.assertEqual(sum(got.values()), th_dopa.parse(text, "fixture"))
+
+    def test_a_masked_tambon_is_the_one_left_over(self):
+        # Rai Mai municipality (Prachuap Khiri Khan) spans two districts; the file masks the second tambon's name
+        text = dopa_file([("อำเภอสามร้อยยอด", 100), ("เทศบาลตำบลไร่ใหม่", 30), ("ตำบลไร่ใหม่", 20), ("ตำบล--", 10)], 130)
+        got, unplaced = th_dopa.districts(text, "77", self.refs, "t")
+        self.assertEqual(unplaced, [])
+        self.assertEqual((got["7708"], got["7702"]), (120, 10))
+
+    def test_rows_that_do_not_add_up_stop_the_run(self):
+        with self.assertRaises(etl.ParserDriftError):
+            th_dopa.districts(dopa_file([("อำเภอสามร้อยยอด", 100)], 101), "77", self.refs, "t")
+
+    def test_unknown_office_stops_the_run(self):
+        with self.assertRaises(etl.ParserDriftError):
+            th_dopa.districts(dopa_file([("อำเภอไม่มีจริง", 100)], 100), "77", self.refs, "t")
+
+
 class Vietnam(unittest.TestCase):
     def test_crosswalk_is_63_to_34_whole_provinces(self):
         cw = vn_gso.crosswalk()

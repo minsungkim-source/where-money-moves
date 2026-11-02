@@ -5,19 +5,19 @@
 A static, English-only data site. Native place names (ชลบุรี, Việt Nam, កម្ពុជា …) sit beside the English ones.
 
 - **Region**: 11 countries (ASEAN + Timor-Leste), ranked on four lenses with World Bank indicators
-- **Thailand**: 77 provinces on all four lenses, 264 districts on monthly bank money
+- **Thailand**: 77 provinces on all four lenses, 264 districts on monthly bank money, all 928 districts on registered population
 - **Vietnam**: 34 provinces (2025 boundaries) on all four lenses, rebuilt from the 63 former provinces
 - **Malaysia**: 16 states and federal territories on three lenses (no open business series by state), 166 districts on
   population and employment
 - **Philippines**: 83 provinces (each highly urbanized city counted with the province around it, Metro Manila as one)
   on two lenses, census population and real GDP
-- 515 pages, each complete without JavaScript (search engines, slow phones). JS adds the interactive layer.
+- 516 pages, each complete without JavaScript (search engines, slow phones). JS adds the interactive layer.
 
 ## The four lenses
 
 | Lens | Countries (World Bank) | Thai provinces | Thai districts | Vietnamese provinces (NSO) | Malaysian states (DOSM) | Philippine provinces (PSA) |
 |---|---|---|---|---|---|---|
-| People | urban population growth `SP.URB.TOTL` | registered population, DOPA stat.bora (Dec, yearly) | – | average population `V02.03-07` + net migration `V02.21-23` | population estimates `population_state` | census 2020 → 2024, a year |
+| People | urban population growth `SP.URB.TOTL` | registered population, DOPA stat.bora (Dec, yearly) | registered population, the same files split by registry office | average population `V02.03-07` + net migration `V02.21-23` | population estimates `population_state` | census 2020 → 2024, a year |
 | Jobs | employed = labour force × (1 − unemployment) | Section 33 insured employees, SSO (Dec, yearly) | – | employed workers `V02.45` | employed persons `lfs_qtr_state`, same quarter a year earlier | – (national survey only) |
 | Businesses | new LLC registrations `IC.BUS.NREG` | employers registered with SSO (**proxy**) | – | newly registered enterprises `V05.02` | – (no open state series; left blank, never zero) | – |
 | Money | real GDP `NY.GDP.MKTP.KD` | bank deposits + credit, BOT (monthly) | bank deposits + credit, BOT | enterprise net revenue `V05.23` (nominal) | real GDP `gdp_state_real_supply` (2015 prices) | real GDP, Provincial Product Accounts (2018 prices) |
@@ -39,7 +39,8 @@ Layers are never mixed on one axis, because national definitions differ.
 ```
 etl/etl.py      BOT district deposits/credit/branches (zip, 2023-01 → latest)  → data/processed/{meta,districts,provinces}.json
 etl/th_sso.py   SSO enterprises + insured by province (xlsx per year)           → data/processed/th_sso.json
-etl/th_dopa.py  DOPA registered population by province (stat.bora text files)    → data/processed/th_dopa.json
+etl/th_dopa.py  DOPA registered population by province and district (stat.bora)  → data/processed/th_dopa.json
+etl/th_dopa_xwalk.py  municipality × tambon → district, from DOPA's coded catalog  → data/reference/th_registry_tambon.csv
 etl/vn_gso.py   Vietnam NSO PX-Web, 63 old provinces → 34 new                  → data/processed/vn_gso.json
 etl/vn_geo.py   geoBoundaries VNM ADM1 TopoJSON, merged by shared arcs          → data/reference/vn.geo.json
 etl/my_dosm.py  OpenDOSM CSVs: state population, quarterly LFS, real GDP, districts → data/processed/my_dosm.json
@@ -63,7 +64,9 @@ Each source has a structure fingerprint and a total cross-check, and stops rathe
 - **Philippines**: every place a table lists must map to a unit (provinces by name, HUCs through a fixed host table);
   places add up to their region and regions to the Philippines, for both price bases and both censuses. The boundary
   units must equal the PSA units (the TopoJSON lost Sultan Kudarat, patched from the same release's GeoJSON)
-- **DOPA**: the year page must list 77 provinces, male + female = total in every file; 2020–2024 match the old catalog exactly
+- **DOPA**: the year page must list 77 provinces, male + female = total in every file; 2020–2024 match the old catalog exactly.
+  Districts must add up to their province exactly; people that cannot be placed blank only the districts they could be in;
+  December 2024 matches the catalog's coded tambon file in 926 of 928 districts (two differ by 1,301 people, see the script)
 
 ```bash
 PY=../blindspot-th/etl/.venv/bin/python     # needs requests + openpyxl

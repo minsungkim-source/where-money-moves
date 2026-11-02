@@ -18,8 +18,15 @@ Why not the open-data catalog (catalog.dopa.go.th, the previous source): it stop
 this site already has December 2025. For 2024 the two agree exactly (Bangkok 5,455,020) — pinned in
 tests/test_etl.py.
 
-District level is not taken from here yet: a district (อำเภอ) row counts only that office's registry, and
-municipalities (เทศบาล) are separate rows, so a district total needs a municipality → district map.
+District level: a district (อำเภอ/เขต) row counts only that office's own registry; each municipality (เทศบาล,
+เมืองพัทยา) is a separate row followed by the tambons it covers. A district's population is its office row plus
+the municipal parts of its tambons. Which district a municipality's tambon lies in comes from
+data/reference/th_registry_tambon.csv (etl/th_dopa_xwalk.py, from the DOPA catalog's coded tambon file), falling back
+to the tambon's name when it is unique in the province. Districts must add up to the province exactly; anything we
+cannot place is counted and reported, and leaves the districts it could belong to without a figure that year.
+Checked against the catalog's coded tambon file for December 2024: 926 of 928 districts are exact; Mueang Kanchanaburi
+and Tha Muang differ by 1,301 people, because stat.bora reports Kanchanaburi town's part of Tha Lo inside Tha Makham
+(tests/test_etl.py pins two Phatthalung districts that an office-row shortcut used to get wrong).
 
 Reachability: dopa.go.th hosts time out from GitHub's runners (outside Thailand). The monthly CI run passes
 --allow-unreachable: a *connection* failure keeps the committed data and exits 0 with a warning; a *parse*
@@ -39,7 +46,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from etl import OUT, RAW, HEADERS, ParserDriftError  # noqa: E402
+from etl import OUT, RAW, REF, HEADERS, ParserDriftError  # noqa: E402
 
 SITE = "https://stat.bora.dopa.go.th/new_stat"
 YEAR_PAGE = SITE + "/webPage/statByProvince.php?year={yy}"
@@ -75,6 +82,108 @@ def parse(text: str, where: str) -> int:
     if male + female != total or total <= 0:
         raise ParserDriftError(f"DOPA {where}: male {male} + female {female} ≠ total {total}")
     return total
+
+
+MUNI = re.compile(r"^(เทศบาล|เมืองพัทยา|ทต\.|ทม\.|ทน\.)")
+ABBR = {"ทต.": "เทศบาลตำบล", "ทม.": "เทศบาลเมือง", "ทน.": "เทศบาลนคร"}
+
+
+def squash(s: str) -> str:
+    """Spacing, hyphens and dots differ between sources (สุไหงโกลก / สุไหงโก-ลก)."""
+    return re.sub(r"[\s\-.]+", "", s)
+
+
+def references():
+    """(district code by Thai name per province, tambon → districts per province, municipality crosswalk)"""
+    import csv
+    dname: dict[str, dict[str, str]] = {}
+    for d in csv.DictReader(open(REF / "thailand-adm2-districts-v1.0.0.csv", encoding="utf-8")):
+        dname.setdefault(d["parent_province_tis1099_code"], {})[squash(d["name_th"])] = d["tis1099_district_code"]
+    tname: dict[str, dict[str, set[str]]] = {}
+    for t in csv.DictReader(open(REF / "thailand-adm3-subdistricts-v1.0.0.csv", encoding="utf-8")):
+        tname.setdefault(t["parent_province_tis1099_code"], {}).setdefault(squash(t["name_th"]), set()).add(t["parent_district_tis1099_code"])
+    xw = {(r["province"], squash(r["registry"]), int(r["nth"]), squash(r["tambon"])): r["district"]
+          for r in csv.DictReader(l for l in open(REF / "th_registry_tambon.csv", encoding="utf-8") if not l.startswith("#"))}
+    # the same municipality under its bare name, whatever its rank (ตำบล → เมือง → นคร upgrades rename it)
+    bare: dict[tuple[str, str, str], set[str]] = {}
+    tams: dict[tuple[str, str, int], dict[str, str]] = {}          # one municipality's tambons → district
+    for (p, reg, k, tam), d in xw.items():
+        tams.setdefault((p, reg, k), {})[tam] = d
+        bare.setdefault((p, base(reg), tam), set()).add(d)
+        bare.setdefault((p, base(reg), "*"), set()).add(d)
+    return dname, tname, xw, bare, tams
+
+
+def base(reg: str) -> str:
+    return re.sub(r"^เทศบาล(ตำบล|เมือง|นคร)", "", reg)
+
+
+def districts(text: str, tis: str, refs, where: str) -> tuple[dict[str, int], list[tuple[int, set[str]]]]:
+    """→ ({district code: registered population}, [(people we could not place, districts they could be in)]).
+
+    Office rows go to their district, except a listed tambon that lies in another district (a newer district still
+    served by its old office). Municipal rows are placed per municipality block: by the crosswalk (under the
+    municipality's name, or its bare name if it was renamed on upgrade); then, if exactly one row is left and exactly
+    one of the municipality's known tambons is unused, those two are the same place (stat.bora sometimes labels a
+    tambon differently from the coded catalog, or masks it as 'ตำบล--'); then by the tambon's name when unique in the
+    province; then by the one district the municipality is known in."""
+    dname, tname, xw, bare, tams = refs
+    rows = [l.split("|") for l in text.lstrip("\ufeff").splitlines() if l.strip()]
+    total = int(rows[0][-2])
+    out: dict[str, int] = {}
+    unplaced: list[tuple[int, set[str]]] = []
+    blocks: list[tuple[tuple[str, int], list[tuple[str, int]]]] = []
+    office, nth = None, {}
+
+    def add(code, v):
+        out[code] = out.get(code, 0) + v
+
+    for r in rows[1:]:
+        name, v = r[0].strip(), int(r[-2])
+        tam = squash(re.sub(r"^(ตำบล|แขวง)", "", name))
+        if name.startswith("อำเภอ") or name.startswith("เขต"):
+            office = dname.get(tis, {}).get(squash(re.sub(r"^(อำเภอ|เขต)", "", name)))
+            if not office:
+                raise ParserDriftError(f"DOPA {where}: district office {name!r} is not a district of {tis}")
+            add(office, v)
+        elif MUNI.match(name):
+            office = None
+            for a, full in ABBR.items():
+                name = name.replace(a, full, 1) if name.startswith(a) else name
+            m = squash(name)
+            nth[m] = nth.get(m, 0) + 1
+            blocks.append(((m, nth[m]), []))
+        elif name.startswith("ตำบล") or name.startswith("แขวง"):
+            if office:
+                cands = tname.get(tis, {}).get(tam, set())
+                if office not in cands and len(cands) == 1:
+                    add(office, -v)
+                    add(next(iter(cands)), v)
+            elif blocks:
+                blocks[-1][1].append((tam, v))
+    for (m, k), parts in blocks:
+        known = tams.get((tis, m, k)) or {}
+        if not known:                       # renamed on upgrade: the same municipality under its bare name
+            alts = [d for (p, reg, kk), d in tams.items() if p == tis and kk == k and base(reg) == base(m)]
+            known = alts[0] if len(alts) == 1 else {}
+        left = [(t, v) for t, v in parts if t not in known]
+        unused = [t for t in known if t not in {t for t, _ in parts}]
+        for t, v in parts:
+            code = known.get(t)
+            if not code and len(left) == 1 and len(unused) == 1:
+                code = known[unused[0]]
+            if not code and len(tname.get(tis, {}).get(t, ())) == 1:
+                code = next(iter(tname[tis][t]))
+            if not code and len(set(known.values())) == 1:
+                code = next(iter(known.values()))
+            if code:
+                add(code, v)
+            else:
+                unplaced.append((v, set(tname.get(tis, {}).get(t, set())) | set(known.values())))
+    lost = sum(v for v, _ in unplaced)
+    if sum(out.values()) + lost != total:
+        raise ParserDriftError(f"DOPA {where}: districts {sum(out.values()):,} + unplaced {lost:,} ≠ province {total:,}")
+    return out, unplaced
 
 
 def fetch(use_cache: bool) -> dict[int, dict[str, str]]:
@@ -125,6 +234,20 @@ def main() -> int:
               "Run etl/th_dopa.py from a machine in Thailand when the next December is published.")
         return 0
     years = {ad: {tis: parse(t, f"{ad}/{tis}") for tis, t in texts.items()} for ad, texts in raw.items()}
+    refs = references()
+    dist: dict[str, dict[str, int | None]] = {}
+    for ad, texts in sorted(raw.items()):
+        lost = 0
+        for tis, t in sorted(texts.items()):
+            got, unplaced = districts(t, tis, refs, f"{ad}/{tis}")
+            lost += sum(v for v, _ in unplaced)
+            # people we could not place leave every district they might belong to without a figure that year
+            # (no candidates at all: the whole province)
+            blank = set().union(*(c or set(got) for _, c in unplaced)) if unplaced else set()
+            for code, v in got.items():
+                dist.setdefault(code, {})[str(ad)] = None if code in blank else v
+        print(f"  districts {ad}: {sum(1 for d in dist.values() if d.get(str(ad)) is not None)} placed"
+              + (f", {lost:,} people unplaced" if lost else ""))
     ys = sorted(years)
     if len(ys) < 2:
         raise ParserDriftError(f"DOPA: only {ys} available, need at least two Decembers")
@@ -134,6 +257,7 @@ def main() -> int:
                    "license": "Open Data Common (DOPA)", "as_of": f"{ys[-1]}-12"},
         "years": ys,
         "provinces": {tis: {str(y): {"population": years[y][tis]} for y in ys} for tis in sorted(years[ys[-1]])},
+        "districts": dict(sorted(dist.items())),
     }
     OUT.mkdir(parents=True, exist_ok=True)
     json.dump(out, open(OUT / "th_dopa.json", "w"), ensure_ascii=False, indent=0)

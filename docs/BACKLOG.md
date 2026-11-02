@@ -27,7 +27,10 @@ Ship small, then widen. Top to bottom.
 - [x] DOPA switched to stat.bora (December 2025, one year fresher; 2020–2024 identical to the catalog)
 - [ ] DOPA is unreachable from GitHub's runners: refresh it yearly from Thailand, or run a self-hosted runner there
 - [ ] Owner setting: allow Actions to open PRs (otherwise the run leaves an issue with a one-click PR link)
-- [ ] District-level population: map municipality (เทศบาล) registries to their districts, then add People to district pages
+- [x] District-level population (2026-11-02): registry offices + municipal tambons placed with a crosswalk from DOPA's
+      coded catalog (2020–2024); all 928 districts on province pages, People on the 264 district pages, a 928-district ranking
+- [ ] One new 2025 municipality (เทศบาลตำบลบ้านไร่, Ratchaburi, 10,534 people) is not in the crosswalk: Mueang Ratchaburi and
+      Damnoen Saduak have no 2025 figure until it can be placed (the office row that shrank by that much is the likely host)
 
 ## v1.2 — Vietnam subnational ✓ (2026-10-27)
 
