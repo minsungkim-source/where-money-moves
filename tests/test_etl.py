@@ -236,7 +236,7 @@ class Vietnam(unittest.TestCase):
         self.assertEqual(vn_gso.names(hcm), ["hochiminh"])
 
 
-def my_raw(pop_scale=1.0, drop_state=None, district="Petaling", lfs_district="Petaling", gdp_total=None):
+def my_raw(pop_scale=1.0, drop_state=None, district="Petaling", lfs_district="Petaling", gdp_total=None, hies_district=None):
     """Tiny OpenDOSM files: 16 states, each 100 people, 50 employed and RM 10 GDP, plus Supra RM 5."""
     st = [s for s in my_dosm.STATES if s != drop_state]
     ov = "both,overall,overall"
@@ -253,8 +253,14 @@ def my_raw(pop_scale=1.0, drop_state=None, district="Petaling", lfs_district="Pe
     lfs_d += "Selangor,{},2023-01-01,,,,,,,\n".format(lfs_district)                     # blank = not published
     gdp = "series,date,state,sector,value\n" + "".join(f"abs,{y}-01-01,{s},p0,{5 if s == 'Supra' else 10}\nabs,{y}-01-01,{s},p5,6\n" for s in st + ["Supra"] for y in (2024, 2025))
     gdp_my = "series,date,sector,value\n" + "".join(f"abs,{y}-01-01,p0,{gdp_total or 165}\n" for y in (2024, 2025))
+    hd = hies_district or district
+    inc_d = "state,district,date,income_mean,income_median\n" + "".join(f"Selangor,{hd},{y}-01-01,9000,7000\n" for y in (2022, 2024))
+    pov_d = "state,district,date,poverty_absolute,poverty_relative\n" + f"Selangor,{hd},2024-01-01,1.5,10\n"
+    gini_d = "state,district,date,gini\n" + f"Selangor,{hd},2024-01-01,0.35\n"
+    inc_s = "state,date,income_mean,income_median\n" + "".join(f"{s},2024-01-01,9000,7000\n" for s in st + ["Malaysia"])
     return {"pop_state": pop, "pop_my": pop_my, "pop_district": pop_d, "lfs_state": lfs, "lfs_my": lfs_my,
-            "lfs_district": lfs_d, "gdp_state": gdp, "gdp_my": gdp_my}
+            "lfs_district": lfs_d, "gdp_state": gdp, "gdp_my": gdp_my,
+            "inc_district": inc_d, "pov_district": pov_d, "gini_district": gini_d, "inc_state": inc_s}
 
 
 class Malaysia(unittest.TestCase):
@@ -283,6 +289,13 @@ class Malaysia(unittest.TestCase):
         self.assertEqual(out["states"]["selangor"]["districts"][0]["name"], "Ulu Langat")
         with self.assertRaises(etl.ParserDriftError):
             my_dosm.build(my_raw(lfs_district="Nowhere"))
+
+    def test_household_survey_spellings_fold_onto_the_district(self):
+        out = my_dosm.build(my_raw(district="Seberang Perai Tengah", lfs_district="Seberang Perai Tengah", hies_district="S.P.Tengah"))
+        d = out["states"]["selangor"]["districts"][0]
+        self.assertEqual((d["income_median"], d["poverty"]), ({"2022": 7000.0, "2024": 7000.0}, {"2024": 1.5}))
+        with self.assertRaises(etl.ParserDriftError):
+            my_dosm.build(my_raw(hies_district="Nowhere"))
 
     def test_a_renamed_column_stops_the_run(self):
         raw = my_raw()

@@ -12,6 +12,10 @@ Lenses (dataset, unit):
 Districts (shown on state pages, not ranked against states):
               population_district      population, thousand, yearly
               lfs_district             employed persons, thousand, yearly (single-district territories are not listed)
+              hh_income_district       household income, RM a month, mean and median (HIES 2019, 2022, 2024; nominal)
+              hh_poverty_district      absolute poverty, % of households (same surveys)
+              hh_inequality_district   Gini coefficient (same surveys)
+States also get hh_income_state (HIES, 1970 onward; we keep 2016 on).
 
 Checks before anything is written:
   · every file has the columns we read (the header is the structure fingerprint)
@@ -47,6 +51,10 @@ FILES = {  # key: (path, columns we rely on)
     "lfs_district": ("labour/lfs_district.csv", ["state", "district", "date", "lf_employed", "u_rate"]),
     "gdp_state": ("gdp/gdp_state_real_supply.csv", ["series", "date", "state", "sector", "value"]),
     "gdp_my": ("gdp/gdp_annual_real_supply.csv", ["series", "date", "sector", "value"]),
+    "inc_district": ("hies/hh_income_district.csv", ["state", "district", "date", "income_mean", "income_median"]),
+    "pov_district": ("hies/hh_poverty_district.csv", ["state", "district", "date", "poverty_absolute"]),
+    "gini_district": ("hies/hh_inequality_district.csv", ["state", "district", "date", "gini"]),
+    "inc_state": ("hies/hh_income_state.csv", ["state", "date", "income_mean", "income_median"]),
 }
 # DOSM label → (slug, English name, Malay name when it differs). The three federal territories drop "W.P."
 STATES = {
@@ -63,6 +71,8 @@ SUPRA = "Supra"
 # the labour survey spells some districts differently from the population tables (some only in 2018–2020)
 DISTRICT_ALIASES = {"Larut & Matang": "Larut Dan Matang", "Tanjong Manis": "Tanjung Manis", "Cameron Highland": "Cameron Highlands",
                     "Manjung (Dinding)": "Manjung", "Hulu Langat": "Ulu Langat", "Hulu Selangor": "Ulu Selangor"}
+# the household surveys spell some districts their own way, and not always the same way each round
+HIES_ALIASES = {("Terengganu", "hulu"): "Hulu Terengganu"}
 SECTORS = {"p1": "Agriculture", "p2": "Mining and quarrying", "p3": "Manufacturing", "p4": "Construction", "p5": "Services"}
 FIRST_YEAR = 2015
 TOLERANCE = 0.005
@@ -118,6 +128,12 @@ def check_states(what: str, labels) -> None:
         raise ParserDriftError(f"{what}: states differ from the 16 expected: {sorted(got ^ set(STATES))}")
 
 
+def dkey(name: str) -> str:
+    """'S.P.Tengah' = 'Seberang Perai Tengah', 'Larut & Matang' = 'Larut dan Matang', 'Lubok antu' = 'Lubok Antu'"""
+    n = name.lower().replace("&", "dan").replace("s.p.", "seberang perai ")
+    return re.sub(r"[^a-z]", "", n)
+
+
 def build(raw: dict[str, str]) -> dict:
     R = {k: rows(k, t) for k, t in raw.items()}
 
@@ -160,6 +176,25 @@ def build(raw: dict[str, str]) -> dict:
             if state_pop:
                 check_sum(f"districts of {st} {y}", sum(float(r["population"]) for r in dpop if r["state"] == st and year(r["date"]) == y), state_pop)
 
+    # Household surveys by district: matched to the population table's districts by folded name
+    by_key = {(st, dkey(d)): d for st, d in known}
+    hies: dict[tuple[str, str], dict[str, dict[str, float]]] = {}
+    for key, col, field in (("inc_district", "income_median", "income_median"), ("inc_district", "income_mean", "income_mean"),
+                            ("pov_district", "poverty_absolute", "poverty"), ("gini_district", "gini", "gini")):
+        for r in R[key]:
+            st = r["state"]
+            name = HIES_ALIASES.get((st, dkey(r["district"])), r["district"])
+            d = by_key.get((st, dkey(name)))
+            if not d:
+                raise ParserDriftError(f"{FILES[key][0]}: {r['district']}, {st} is not a district in population_district")
+            if r[col].strip():
+                hies.setdefault((st, d), {}).setdefault(field, {})[str(year(r["date"]))] = float(r[col])
+    inc_state = {}
+    check_states("hh_income_state", {x["state"] for x in R["inc_state"]} - {"Malaysia"})
+    for r in R["inc_state"]:
+        if r["state"] in STATES and year(r["date"]) >= 2016 and r["income_median"].strip():
+            inc_state.setdefault(r["state"], {})[str(year(r["date"]))] = float(r["income_median"])
+
     out_states = {}
     for label, (slug, name, native) in STATES.items():
         s = {
@@ -175,13 +210,18 @@ def build(raw: dict[str, str]) -> dict:
         districts = {}
         for r in dpop:
             if r["state"] == label:
-                districts.setdefault(r["district"], {"pop": {}, "employed": {}, "u_rate": {}})["pop"][str(year(r["date"]))] = float(r["population"])
+                districts.setdefault(r["district"], {"pop": {}, "employed": {}, "u_rate": {}, **{f: {} for f in ("income_median", "income_mean", "poverty", "gini")}}
+                                     )["pop"][str(year(r["date"]))] = float(r["population"])
         for r in dl:
             if r["state"] == label:
                 d = districts[r["district"]]
                 for k, col in (("employed", "lf_employed"), ("u_rate", "u_rate")):
                     if r[col].strip():                         # blank = not published for that district and year
                         d[k][str(year(r["date"]))] = float(r[col])
+        for dn, d in districts.items():
+            for f, ser in hies.get((label, dn), {}).items():
+                d[f].update(ser)
+        s["income_median"] = {int(y): v for y, v in inc_state.get(label, {}).items()}
         out_states[slug] = {"slug": slug, "name": name, "native": native, "dosm": label,
                             "series": {k: {str(x): v for x, v in sorted(ser.items())} for k, ser in s.items()},
                             "sectors": sectors,

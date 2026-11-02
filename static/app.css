@@ -54,8 +54,10 @@ kbd { font: 500 11px var(--body); border: 1px solid var(--line); border-bottom-w
 .top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 18px; padding: 12px clamp(16px, 4vw, 40px);
   background: color-mix(in srgb, var(--paper) 86%, transparent); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid transparent; transition: border-color .2s; }
 .top.scrolled { border-bottom-color: var(--line); }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
-.nav { display: flex; gap: 4px; margin-left: 8px; }
+.brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; white-space: nowrap; text-decoration: none; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+.nav { display: flex; gap: 4px; margin-left: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; }   /* seven links: scroll, never wrap the brand */
+.nav::-webkit-scrollbar { display: none; }
+.nav a { white-space: nowrap; }
 .nav a { text-decoration: none; color: var(--muted); font-size: 14px; padding: 6px 10px; border-radius: 999px; }
 .nav a:hover, .nav a[aria-current="page"] { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
 .cmp .count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px; background: var(--current); color: var(--paper); font-size: 11px; font-weight: 600; }
@@ -65,6 +67,11 @@ kbd { font: 500 11px var(--body); border: 1px solid var(--line); border-bottom-w
 .search-btn span { flex: 1; text-align: left; }
 .theme-btn { padding: 7px; }
 .search-btn svg, .theme-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+@media (max-width: 1120px) {             /* four countries in the nav: the search button gives up its label first */
+  .search-btn { min-width: 0; }
+  .search-btn span, .search-btn kbd { display: none; }
+  .nav a { padding: 6px 8px; }
+}
 @media (max-width: 760px) {
   .nav { display: none; }
   .search-btn { min-width: 0; }

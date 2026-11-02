@@ -8,10 +8,10 @@ A static, English-only data site. Native place names (ชลบุรี, Việt
 - **Thailand**: 77 provinces on all four lenses, 264 districts on monthly bank money, all 928 districts on registered population
 - **Vietnam**: 34 provinces (2025 boundaries) on all four lenses, rebuilt from the 63 former provinces
 - **Malaysia**: 16 states and federal territories on three lenses (no open business series by state), 166 districts on
-  population and employment
+  population and employment, 162 on household income, poverty and inequality (HIES 2019, 2022, 2024)
 - **Philippines**: 83 provinces (each highly urbanized city counted with the province around it, Metro Manila as one)
   on two lenses, census population and real GDP
-- 516 pages, each complete without JavaScript (search engines, slow phones). JS adds the interactive layer.
+- 517 pages, each complete without JavaScript (search engines, slow phones). JS adds the interactive layer.
 
 ## The four lenses
 
@@ -43,7 +43,7 @@ etl/th_dopa.py  DOPA registered population by province and district (stat.bora) 
 etl/th_dopa_xwalk.py  municipality × tambon → district, from DOPA's coded catalog  → data/reference/th_registry_tambon.csv
 etl/vn_gso.py   Vietnam NSO PX-Web, 63 old provinces → 34 new                  → data/processed/vn_gso.json
 etl/vn_geo.py   geoBoundaries VNM ADM1 TopoJSON, merged by shared arcs          → data/reference/vn.geo.json
-etl/my_dosm.py  OpenDOSM CSVs: state population, quarterly LFS, real GDP, districts → data/processed/my_dosm.json
+etl/my_dosm.py  OpenDOSM CSVs: state population, quarterly LFS, real GDP, districts, HIES → data/processed/my_dosm.json
 etl/my_geo.py   geoBoundaries MYS ADM1 TopoJSON (UNHCR via HDX)                 → data/reference/my.geo.json
 etl/ph_psa.py   PSA OpenSTAT: provincial GDP + 2020/2024 censuses, HUCs → host  → data/processed/ph_psa.json
 etl/ph_geo.py   geoBoundaries PHL ADM2 (NAMRIA/PSA via HDX), merged by arcs     → data/reference/ph.geo.json

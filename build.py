@@ -508,11 +508,21 @@ def malaysia_model(my):
              "sectors": {c: growth(v.get(str(g)), v.get(str(g - 1))) for c, v in s["sectors"].items()},
              "sector_share": {c: (v.get(str(g)) or 0) / gdp[g] for c, v in s["sectors"].items()},
              "districts": []}
+        inc = {int(y): v for y, v in S.get("income_median", {}).items()}
+        hy = max(inc) if inc else None
+        r["income"], r["income_year"] = (inc[hy], hy) if hy else (None, None)
+        r["income_growth"] = growth(inc.get(hy), inc.get(hy - 2)) if hy else None
         for d in s["districts"]:
             dp = {int(k): v for k, v in d["pop"].items()}
             de = {int(k): v for k, v in d["employed"].items()}
             dy, ey = max(dp), max(de) if de else None
-            r["districts"].append({"name": d["name"], "pop": dp[dy] * 1000, "people": growth(dp[dy], dp.get(dy - 1)),
+            hi = {int(k): v for k, v in d.get("income_median", {}).items()}
+            hp = {int(k): v for k, v in d.get("poverty", {}).items()}
+            iy = max(hi) if hi else None
+            hies = {"income": hi.get(iy), "income_growth": growth(hi.get(iy), hi.get(iy - 2)) if iy else None,
+                    "poverty": hp.get(iy), "poverty_change": (hp[iy] - hp[iy - 2]) if iy and iy in hp and iy - 2 in hp else None,
+                    "gini": d.get("gini", {}).get(str(iy)) if iy else None, "income_year": iy}
+            r["districts"].append({**hies, "name": d["name"], "pop": dp[dy] * 1000, "people": growth(dp[dy], dp.get(dy - 1)),
                                    "people_5y": growth(dp[dy], dp.get(dy - 5)),
                                    "employed": de[ey] * 1000 if ey else None, "jobs": growth(de[ey], de.get(ey - 1)) if ey else None,
                                    "u_rate": d["u_rate"].get(str(ey)) if ey else None, "pop_year": dy, "emp_year": ey})
@@ -521,7 +531,8 @@ def malaysia_model(my):
     label = {"people": (f"{y - 1} to {y} (estimates)", y), "jobs": (f"{qlabel(q0)} to {qlabel(q)}", qlabel(q)),
              "biz": ("no open state series", None), "money": (f"{g - 1} to {g}", g)}
     years = {"district_pop": max(d["pop_year"] for m in M.values() for d in m["districts"]),
-             "district_emp": max((d["emp_year"] for m in M.values() for d in m["districts"] if d["emp_year"]), default=None)}
+             "district_emp": max((d["emp_year"] for m in M.values() for d in m["districts"] if d["emp_year"]), default=None),
+             "district_income": max((d["income_year"] for m in M.values() for d in m["districts"] if d["income_year"]), default=None)}
     return M, label, years
 
 
@@ -1577,6 +1588,10 @@ def main():
         return (f'<li><a href="{U(m_url(m))}#districts"><span class="nm">{esc(d["name"])}<small>{esc(m["name"])}</small></span>'
                 f'<span class="val {tone(val)}">{pct(val)}</span></a></li>')
     grow = sorted(all_md, key=lambda x: -x[1]["people"])[:10]
+    iyr = myears["district_income"]
+    inc_md = [(m, d) for m in M.values() for d in m["districts"] if len(m["districts"]) > 1 and d["income_growth"] is not None]
+    inc_up = sorted(inc_md, key=lambda x: -x[1]["income_growth"])[:10]
+    inc_down = sorted(inc_md, key=lambda x: x[1]["income_growth"])[:5]
     shrink = sorted(all_md, key=lambda x: x[1]["people"])[:5]
     explorer = f"""
 <section class="hero">
@@ -1602,6 +1617,13 @@ def main():
     <ol class="dlist">{"".join(mdrow(m, d, d["people"]) for m, d in grow)}</ol></div>
   <div><h2>Districts losing people</h2><p class="sub">Same period, all {len(all_md)} districts</p>
     <ol class="dlist">{"".join(mdrow(m, d, d["people"]) for m, d in shrink)}</ol></div>
+</section>
+<section class="movers reveal">
+  <div><h2>Household income rising fastest</h2><p class="sub">Median household income, {iyr - 2} to {iyr} (Household Income Survey, nominal)</p>
+    <ol class="dlist">{"".join(mdrow(m, d, d["income_growth"]) for m, d in inc_up)}</ol>
+    <a class="more" href="{U('/rankings/malaysia-district-income-growth/')}">All {len(inc_md)} districts</a></div>
+  <div><h2>Household income falling</h2><p class="sub">Same surveys</p>
+    <ol class="dlist">{"".join(mdrow(m, d, d["income_growth"]) for m, d in inc_down)}</ol></div>
 </section>
 """
     write("/malaysia/", page(U("/malaysia/"), "Malaysia's states ranked by population, jobs and GDP growth | Where Money Moves",
@@ -1634,7 +1656,9 @@ def main():
                        "DOSM publishes no open count of businesses or new registrations by state. Momentum for Malaysia averages the other three lenses; a proxy will be labelled as one when it arrives.") +
             lens_panel("money", pct(m["money"]), f"real GDP, {mlab['money'][0]}", f"#{m.get('money_rank', '–')} of 16",
                        [("GDP", f"RM {m['gdp'] / 1000:,.1f} billion ({g}, 2015 prices)"),
-                        ("Per person", f"RM {m['gdp_pc']:,.0f}" if m["gdp_pc"] else "–"), ("Five-year change", pct(m["gdp_5y"]))] + sec_rows,
+                        ("Per person", f"RM {m['gdp_pc']:,.0f}" if m["gdp_pc"] else "–"), ("Five-year change", pct(m["gdp_5y"]))]
+                       + ([(f"Median household income ({m['income_year']})", f"RM {m['income']:,.0f} a month, {pct(m['income_growth'])} since {m['income_year'] - 2}")] if m["income"] else [])
+                       + sec_rows,
                        chart([(y, v * 1e6) for y, v in m["gdp_series"]], "Real GDP (RM, constant 2015 prices)", unit="RM", x_label=str, every=2, kind="dots"),
                        f"Oil and gas output not tied to any state (RM {float(my['supra_gdp'][str(g)]) / 1000:,.0f} billion in {g}) is left out of every state.")
         )
@@ -1649,19 +1673,28 @@ def main():
                          + (f'<td class="num" data-v="{d["employed"]:.0f}">{d["employed"]:,.0f}</td>' if d["employed"] else '<td class="num" data-v="">–</td>')
                          + value_cell(d["jobs"])
                          + (f'<td class="num" data-v="{d["u_rate"]}">{d["u_rate"]:.1f}%</td>' if d["u_rate"] is not None else '<td class="num" data-v="">–</td>')
+                         + (f'<td class="num" data-v="{d["income"]:.0f}">RM {d["income"]:,.0f}</td>' if d["income"] else '<td class="num" data-v="">–</td>')
+                         + value_cell(d["income_growth"])
+                         + (f'<td class="num" data-v="{d["poverty"]}">{d["poverty"]:.1f}%</td>' if d["poverty"] is not None else '<td class="num" data-v="">–</td>')
                          + "</tr>")
             dtable = (f'<section class="reveal" id="districts"><h2>Districts</h2>'
-                      f'<p class="sub">Population {myears["district_pop"] - 1} to {myears["district_pop"]} (estimates); employment and unemployment {ey - 1} to {ey}, from the yearly Labour Force Survey.</p>'
+                      f'<p class="sub">Population {myears["district_pop"] - 1} to {myears["district_pop"]} (estimates); employment and unemployment {ey - 1} to {ey}, from the yearly Labour Force Survey; '
+                      f'median household income and absolute poverty from the Household Income Survey, {iyr - 2} to {iyr} (income is nominal, a month).</p>'
                       f'<div class="tablewrap"><table class="rank" data-sortable><thead><tr><th scope="col">District</th>'
                       f'<th scope="col" class="num"><button data-k="1">Population</button></th><th scope="col" class="num"><button data-k="2">People</button></th>'
                       f'<th scope="col" class="num"><button data-k="3">Five years</button></th><th scope="col" class="num"><button data-k="4">Employed</button></th>'
                       f'<th scope="col" class="num"><button data-k="5">Jobs</button></th><th scope="col" class="num"><button data-k="6">Unemployment</button></th>'
+                      f'<th scope="col" class="num"><button data-k="7">Household income</button></th><th scope="col" class="num"><button data-k="8">Income change</button></th>'
+                      f'<th scope="col" class="num"><button data-k="9">Poverty</button></th>'
                       f'</tr></thead><tbody>{rows}</tbody></table></div></section>')
         extra = (f"Its economy grew {pct(m['money'])} in real terms in {g}; {sec_names[biggest].lower()}, the largest sector at "
                  f"{m['sector_share'][biggest] * 100:.0f}% of output, grew {pct(m['sectors'][biggest])}.") if m["money"] is not None else ""
         if multi:
             fast = max((d for d in m["districts"] if d["people"] is not None), key=lambda d: d["people"])
             extra += f" Its fastest-growing district is {fast['name']} ({pct(fast['people'])} population in a year)."
+        if m["income"]:
+            extra += (f" Median household income {'rose' if (m['income_growth'] or 0) >= 0 else 'fell'} {pct(abs(m['income_growth'] or 0))[1:]} "
+                      f"between {m['income_year'] - 2} and {m['income_year']}, to RM {m['income']:,.0f} a month.")
         if m["pop"] < 200000:
             extra += " With so few people, single-year changes swing widely; read them with care."
         summary = brief(m, "my", 16, "Malaysian states and federal territories", extra.strip())
@@ -1949,6 +1982,18 @@ def main():
         srt = sorted([m for m in M.values() if m[k] is not None], key=lambda m: -m[k])
         ranking_page(key, title, f"{MY_DESC[k]}, {mlab[k][0]}.", mhead, "".join(mrow(m, i) for i, m in enumerate(srt, 1)))
 
+    irows = ""
+    for i, (m, d) in enumerate(sorted(inc_md, key=lambda x: -x[1]["income_growth"]), 1):
+        irows += (f'<tr><td class="num pos">{i}</td><th scope="row"><a href="{U(m_url(m))}#districts">{esc(d["name"])}</a><small>{esc(m["name"])}</small></th>'
+                  f'<td class="num" data-v="{d["income"]:.0f}">RM {d["income"]:,.0f}</td>' + value_cell(d["income_growth"])
+                  + (f'<td class="num" data-v="{d["poverty"]}">{d["poverty"]:.1f}%</td>' if d["poverty"] is not None else '<td class="num" data-v="">–</td>')
+                  + (f'<td class="num" data-v="{d["gini"]}">{d["gini"]:.3f}</td>' if d["gini"] is not None else '<td class="num" data-v="">–</td>') + "</tr>")
+    ranking_page("malaysia-district-income-growth", "Malaysian districts by household income growth",
+                 f"All {len(inc_md)} districts, median household income {iyr - 2} to {iyr} (nominal, a month), with absolute poverty and the Gini coefficient.",
+                 '<th scope="col" class="num">#</th><th scope="col">District</th><th scope="col" class="num"><button data-k="2">Median income</button></th>'
+                 '<th scope="col" class="num"><button data-k="3">Change</button></th><th scope="col" class="num"><button data-k="4">Poverty</button></th>'
+                 '<th scope="col" class="num"><button data-k="5">Gini</button></th>', irows)
+
     def hrow(h, pos):
         return (f'<tr><td class="num pos">{pos}</td><th scope="row"><a href="{U(h_url(h))}">{esc(h["name"])}</a><small>{esc(h["region"])}</small></th>'
                 f'<td data-v="{round(h["score"], 2) if h["score"] is not None else ""}">{score_pill(h["score"])}</td>'
@@ -2009,7 +2054,7 @@ def main():
         ("The four lenses for Vietnam",
          f"From the National Statistics Office (formerly GSO). People: average population, {vlab['people'][0]}, with net migration per 1,000 residents alongside. Jobs: employed workers, {vlab['jobs'][0]}. Businesses: newly registered enterprises, {vlab['biz'][0]}. Money: net revenue of active enterprises, {vlab['money'][0]}, nominal. The latest year is often preliminary."),
         ("The lenses for Malaysia",
-         f"From the Department of Statistics Malaysia (OpenDOSM). People: population estimates, {mlab['people'][0]}. Jobs: employed persons from the quarterly Labour Force Survey, {mlab['jobs'][0]}, so seasons cancel out. Money: real GDP at constant 2015 prices, {mlab['money'][0]}; output that cannot be placed in a state, mostly oil and gas, is left out of every state. Businesses: DOSM publishes no open business count by state, so the lens is blank and Momentum averages the other three. State pages list every district's population and, where the survey covers it, employment. East Malaysia is drawn closer to the peninsula than it is."),
+         f"From the Department of Statistics Malaysia (OpenDOSM). People: population estimates, {mlab['people'][0]}. Jobs: employed persons from the quarterly Labour Force Survey, {mlab['jobs'][0]}, so seasons cancel out. Money: real GDP at constant 2015 prices, {mlab['money'][0]}; output that cannot be placed in a state, mostly oil and gas, is left out of every state. Businesses: DOSM publishes no open business count by state, so the lens is blank and Momentum averages the other three. State pages list every district's population and, where the survey covers it, employment, with median household income, absolute poverty and the Gini coefficient from the Household Income Survey (2019, 2022, 2024; income is nominal). East Malaysia is drawn closer to the peninsula than it is."),
         ("The lenses for the Philippines",
          f"From the Philippine Statistics Authority (OpenSTAT). People: census population on 1 May 2020 and 1 July 2024, as a yearly rate. Money: real GDP from the Provincial Product Accounts, {hlab['money'][0]}, at constant 2018 prices. Jobs and businesses have no province series, so Momentum averages the two. PSA counts highly urbanized cities apart from their provinces; we add each to the province around it, and Metro Manila's seventeen cities into one, so every unit is a place on the map. Maguindanao is shown whole (it was split in 2022), with its two halves on its page. Islets smaller than about 15 km² are not drawn."),
         ("Vietnam's 2025 merger",

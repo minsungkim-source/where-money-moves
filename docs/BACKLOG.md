@@ -50,8 +50,10 @@ Ship small, then widen. Top to bottom.
       district's population and employment, 4 rankings, home section, search finds districts, monthly refresh
 - [ ] Businesses lens is blank for Malaysia: no open state series. Candidates: SSM company registrations by state
       (published only as PDFs), or the OSM proxy below
-- [ ] District GDP exists (`gdp_district_real_supply`, to 2020 only) and district household income (HIES 2022):
-      district pages with a map would need geoBoundaries MYS ADM2 and a name match for 166 districts
+- [x] District household income, absolute poverty and Gini (HIES 2019/2022/2024) on state pages; explorer movers;
+      a 162-district ranking by income growth (2026-11-02)
+- [ ] District map: geoBoundaries MYS ADM2 (gbOpen, 159 units, 2020) lacks six newer Sarawak/Sabah districts and
+      Putrajaya; folding them into their parents needs an authoritative parent list (Siburan's is unclear), so not drawn yet
 
 ## v1.5 — Philippines (fourth country) ✓ (2026-11-02)
 
