@@ -2160,6 +2160,7 @@ def main():
 <link rel="stylesheet" href="{U('/assets/app.css')}?v={meta['build_id']}">
 <style>
   html, body {{ margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--paper); }}
+  *, *::before, *::after {{ transition: none !important; animation: none !important; }}   /* a photo, not a page: no fills mid-fade */
   .card {{ position: relative; width: 1200px; height: 630px; display: grid; grid-template-columns: 1fr 440px; }}
   .words {{ display: grid; grid-template-rows: auto 1fr auto; padding: 56px 0 52px 64px; min-width: 0; }}
   .brand {{ display: flex; align-items: center; gap: 12px; font: 700 24px var(--display); letter-spacing: -0.02em; color: var(--ink); }}
@@ -2201,13 +2202,16 @@ window.ogReady = (async () => {{
   await document.fonts.ready;
   return CARDS.length;
 }})();
-window.card = (i) => {{
+window.card = async (i) => {{
   const c = CARDS[i], $ = (s) => document.querySelector(s);
   $(".kicker").textContent = c.kicker || "";
   const h = $("h1"); h.textContent = c.title; h.className = ""; h.style.fontSize = "";      // each card starts at full size
   for (let px = 92; px > 52 && h.scrollWidth > h.clientWidth; px -= 4) h.style.fontSize = px + "px";
   if (h.scrollWidth > h.clientWidth) {{ h.className = "long"; }}
-  $(".native").textContent = c.native && c.native !== c.title ? c.native : "";
+  const nat = $(".native");
+  nat.textContent = c.native && c.native !== c.title ? c.native : "";
+  // Burmese, Khmer and Lao faces load only when their text appears: fetch them before the photograph
+  if (nat.textContent) await document.fonts.load(`400 34px ${{getComputedStyle(nat).fontFamily}}`, nat.textContent);
   $(".rank").textContent = c.rank || "";
   $(".line").textContent = c.stats && c.stats.length ? "" : (c.line || "");
   $(".nums").replaceChildren(...(c.stats || []).map(([k, v, t]) => {{
@@ -2228,6 +2232,7 @@ window.card = (i) => {{
       r.setAttribute("r", 18 / scale); svg.append(r);
     }}
   }}
+  await document.fonts.ready;
   return c.key;
 }};
 </script></body></html>
