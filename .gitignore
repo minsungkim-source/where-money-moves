@@ -7,3 +7,6 @@ data/raw/
 .DS_Store
 __pycache__/
 .vercel/
+
+# 렌더한 영상 (tools/film_mp4.mjs)
+dist/

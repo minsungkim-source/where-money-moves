@@ -102,7 +102,8 @@ Interactive layer (`static/app.js`, progressive enhancement):
 - **Film** `/film/` (`static/film.js`): a 43-second data film drawn in code, directed with the
   [Lemo-Opuscar](https://github.com/lemomo-ai/lemo-opuscar) method (Data Storytelling grammar). Captions and subjects are
   chosen from the data at build time; Web Audio sonification; `window.wmmFilmRender(t)` renders any frame for export.
-  Treatment and credits: `docs/film/`
+  Treatment and credits: `docs/film/`. To export a 1080p mp4 (needs Chrome and ffmpeg 7+, no packages):
+  `python build.py && node tools/film_mp4.mjs` → `dist/where-the-money-moved.mp4` (frames and sound come from the page itself)
 
 Design notes live at the top of `static/app.css`. Project skills used while building are in `.claude/skills/`
 (frontend-design, accessibility, seo, performance, programmatic-seo), each with its licence and `SOURCE.md`.

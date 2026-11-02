@@ -237,12 +237,13 @@
   // ── sound: sonification on WebAudio. Each landing mark is a pitch from its value (pentatonic), a soft pad
   // underneath, and two real silences (before the home bar, before the ranking).
   var audio = null, scheduled = false;
-  function sound() {
+  // Takes an optional context: the video export passes an OfflineAudioContext and gets the same score, sample-exact.
+  function sound(given) {
     var AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    var ac = new AC(), master = ac.createGain();
+    if (!given && !AC) return null;
+    var ac = given || new AC(), master = ac.createGain();
     master.gain.value = 0.55; master.connect(ac.destination);
-    var t0 = ac.currentTime + 0.05;
+    var t0 = ac.currentTime + (given ? 0 : 0.05);
     var penta = [0, 2, 4, 7, 9];
     function note(at, value, len, vol) {
       var step = Math.round((value / 100) * 12), semi = 12 * Math.floor(step / 5) + penta[step % 5];
@@ -305,5 +306,6 @@
   size();
   if (document.fonts) document.fonts.ready.then(function () { draw(reduced ? T.lift + 4 : 0.0001); });
   render(reduced ? T.lift + 4 : 0.0001);
-  window.wmmFilmRender = render;                                   // frame-by-frame export hook
+  window.wmmFilmRender = render;                                   // frame-by-frame export hooks (tools/film_mp4.mjs)
+  window.wmmFilmSound = sound;
 })();
