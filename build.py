@@ -628,10 +628,28 @@ def legend(layer):
 
 
 def lens_attrs(r, keys):
+    """Colour bin per lens (data-b-*, used by CSS) and percentile rank per lens (data-p-*, used as height in 3D)."""
     a = [f'data-b-score="{bin7(r.get("score"))}"']
+    if r.get("score") is not None:
+        a.append(f'data-p-score="{r["score"]:.1f}"')
     for k in keys:
         a.append(f'data-b-{k}="{bin7(r.get(k + "_pct"))}"')
+        if r.get(k + "_pct") is not None:
+            a.append(f'data-p-{k}="{r[k + "_pct"]:.1f}"')
     return " ".join(a)
+
+
+def view_toggle():
+    """2D/3D switch. The 3D view (assets/map3d.js + three.js) loads only when pressed."""
+    return ('<div class="views" role="group" aria-label="Map view">'
+            '<button type="button" data-view="2d" aria-pressed="true">2D</button>'
+            '<button type="button" data-view="3d" aria-pressed="false">3D</button></div>')
+
+
+def import_map():
+    v = "/assets/vendor/three@0.169.0/"
+    return ('<script type="importmap">' + json.dumps({"imports": {"three": U(v + "three.module.min.js"),
+                                                                   "three/addons/": U(v + "addons/")}}) + "</script>")
 
 
 def value_cell(g, cls=""):
@@ -699,6 +717,7 @@ def main():
     for f in STATIC.iterdir():
         if f.is_file() and f.name not in ("sw.js", "app.css"):
             shutil.copy(f, OUT / "assets" / f.name)
+    shutil.copytree(STATIC / "vendor", OUT / "assets" / "vendor")       # three.js (MIT), for the 3D view only
 
     # map colour rules are generated: one per lens × bin
     rules = []
@@ -1020,7 +1039,7 @@ def main():
 </section>
 <section class="split flush">
   <div class="split-body">
-    <div class="split-map">{lens_tabs(label="Thailand lens")}<a class="skip-map" href="#after-map-4">Skip the map</a><div class="mapframe tall">{th_map()}</div><span id="after-map-4" tabindex="-1"></span>{legend("Thailand's 77 provinces")}</div>
+    <div class="split-map"><div class="maptools">{lens_tabs(label="Thailand lens")}{view_toggle()}</div><a class="skip-map" href="#after-map-4">Skip the map</a><div class="mapframe tall">{th_map()}</div><span id="after-map-4" tabindex="-1"></span>{legend("Thailand's 77 provinces")}</div>
     <div class="split-list">
       <dl class="asof">{"".join(f'<div>{icon(k)}<dt>{esc(LENS[k][0])}</dt><dd>{esc(LENS[k][2])}<br><small>{esc(base_of[k])} to {esc(asof[k])}</small></dd></div>' for k in lens_keys)}</dl>
     </div>
@@ -1037,7 +1056,7 @@ def main():
 """
     write("/thailand/", page(U("/thailand/"), "Thailand provinces ranked by population, jobs, businesses and money | Where Money Moves",
                              "All 77 Thai provinces ranked on registered population, formal employment, registered employers and bank money growth.",
-                             explorer, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/")]))
+                             explorer, meta, crumbs=[("Southeast Asia", "/"), ("Thailand", "/thailand/")], extra_head=import_map()))
 
     # ── PROVINCE pages
     for tis, t in T.items():
@@ -1182,7 +1201,7 @@ def main():
 </section>
 <section class="split flush">
   <div class="split-body">
-    <div class="split-map">{lens_tabs(label="Vietnam lens")}<a class="skip-map" href="#after-map-5">Skip the map</a><div class="mapframe tall">{vn_map()}</div><span id="after-map-5" tabindex="-1"></span>{legend("Vietnam's 34 provinces")}
+    <div class="split-map"><div class="maptools">{lens_tabs(label="Vietnam lens")}{view_toggle()}</div><a class="skip-map" href="#after-map-5">Skip the map</a><div class="mapframe tall">{vn_map()}</div><span id="after-map-5" tabindex="-1"></span>{legend("Vietnam's 34 provinces")}
       <p class="note">Dashed lines are the provincial borders before 1 July 2025.</p></div>
     <div class="split-list">
       <dl class="asof">{"".join(f'<div>{icon(k)}<dt>{esc(LENS[k][0])}</dt><dd>{esc(VN_DESC[k])}<br><small>{esc(vlab[k][0])}</small></dd></div>' for k in vk)}</dl>
@@ -1197,7 +1216,7 @@ def main():
 """
     write("/vietnam/", page(U("/vietnam/"), "Vietnam's 34 provinces ranked by population, jobs, new businesses and revenue | Where Money Moves",
                             "Every Vietnamese province on the 2025 boundaries, ranked on population, employment, new enterprises and enterprise revenue growth.",
-                            explorer, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/")]))
+                            explorer, meta, crumbs=[("Southeast Asia", "/"), ("Vietnam", "/vietnam/")], extra_head=import_map()))
 
     # ── VIETNAM province pages
     units = vn["units"]

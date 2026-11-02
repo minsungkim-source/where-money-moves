@@ -240,6 +240,45 @@
     });
   });
 
+  // ── 2D / 3D map view. three.js and map3d.js load only on the first press of "3D".
+  $$(".views").forEach(function (group) {
+    var wrap = group.closest(".split-map"), frame = $(".mapframe", wrap), svg = $(".map", frame), dispose = null, hint = null;
+    function set(view) {
+      $$("button", group).forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.view === view)); });
+    }
+    function webgl() {
+      try { var c = doc.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) { return false; }
+    }
+    $$("button", group).forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (b.dataset.view === "3d" && !dispose) {
+          if (!webgl()) { toast("3D needs WebGL, which this browser has turned off"); return; }
+          set("3d");
+          var host = doc.createElement("div");
+          host.className = "map3d";
+          frame.appendChild(host);
+          frame.classList.add("is3d");
+          import(BASE + "/assets/map3d.js").then(function (m) {
+            dispose = m.mount(svg, host, { tipHTML: tipHTML });
+            hint = doc.createElement("p");
+            hint.className = "map3d-hint";
+            hint.textContent = "Height is rank on the selected lens. Drag to turn, scroll or pinch to zoom, select a province to open it.";
+            frame.insertAdjacentElement("afterend", hint);
+          }).catch(function () {
+            frame.classList.remove("is3d"); host.remove(); set("2d");
+            toast("The 3D view couldn't load. Try again when you're online.");
+          });
+        } else if (b.dataset.view === "2d" && dispose) {
+          dispose(); dispose = null;
+          $(".map3d", frame) && $(".map3d", frame).remove();
+          if (hint) { hint.remove(); hint = null; }
+          frame.classList.remove("is3d");
+          set("2d");
+        }
+      });
+    });
+  });
+
   // ── command palette
   var dlg = $("#cmdk"), idx = null, sel = 0;
   function norm(s) { return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[\s\-.,']/g, ""); }
