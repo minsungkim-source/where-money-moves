@@ -808,7 +808,7 @@ def page(path, title, desc, body, meta, crumbs=None, watch=None, extra_head="") 
 <link rel="apple-touch-icon" href="{U('/assets/icon-192.png')}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..750&family=Inter:wght@400..700&family=Noto+Sans+Thai:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..750&family=Atkinson+Hyperlegible+Next:wght@400..700&family=Noto+Sans+Thai:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer&family=Noto+Sans+Lao&family=Noto+Sans+Myanmar&text={NATIVE_GLYPHS}&display=swap">
 <link rel="stylesheet" href="{U('/assets/app.css')}?v={v}">
 <script type="speculationrules">{{"prerender":[{{"where":{{"href_matches":"{BASE}/*"}},"eagerness":"moderate"}}]}}</script>
@@ -910,9 +910,23 @@ def score_pill(s):
     return f'<span class="pill b{bin7(s)}"><b>{s:.0f}</b></span>'
 
 
+FIG = re.compile(r"^([^\d−+-]*)([−+-]?)([\d,]*\.?\d+)(.*)$")      # the same split as countUp() in app.js
+
+
+def fig(value):
+    """A display figure: sign, digits and unit in their own spans, so the sign can be lighter, the % small and raised,
+    and the count-up animate the digits alone. Anything that isn't a number ("–") is left as it is."""
+    m = FIG.match(value)
+    if not m:
+        return esc(value)
+    pre, sign, num, post = m.groups()
+    return (esc(pre) + (f'<span class="sg">{sign}</span>' if sign else "") + f'<span class="n">{num}</span>'
+            + (f'<span class="un">{esc(post)}</span>' if post else ""))
+
+
 def stat(label, value, sub="", cls="", count=True):
     data = f' data-count="{esc(value)}"' if count and value not in ("–",) else ""
-    return (f'<div class="stat"><span class="k">{esc(label)}</span><span class="v {cls}"{data}>{esc(value)}</span>'
+    return (f'<div class="stat"><span class="k">{esc(label)}</span><span class="v {cls}"{data}>{fig(value)}</span>'
             + (f'<span class="s">{esc(sub)}</span>' if sub else "") + "</div>")
 
 
@@ -920,7 +934,7 @@ def lens_panel(k, headline, unit_label, rank_txt, rows, chart_html="", note=""):
     lab, *_ = LENS[k]
     return (f'<section class="lens-panel reveal" data-k="{k}"><header>{icon(k)}<h2>{esc(lab)}</h2>'
             f'<span class="rank">{esc(rank_txt)}</span></header>'
-            f'<p class="headline"><span class="v {tone_from(headline)}" data-count="{esc(headline)}">{esc(headline)}</span>'
+            f'<p class="headline"><span class="v {tone_from(headline)}" data-count="{esc(headline)}">{fig(headline)}</span>'
             f'<span class="u">{esc(unit_label)}</span></p>'
             + ("<dl>" + "".join(f"<div><dt>{esc(a)}</dt><dd>{esc(b)}</dd></div>" for a, b in rows) + "</dl>" if rows else "")
             + chart_html + (f'<p class="note">{esc(note)}</p>' if note else "") + "</section>")
@@ -1280,7 +1294,7 @@ def main():
     sea_pop = sum(r["pop"] for r in Rv if r["pop"])
     kpis = "".join(
         f'<a class="kpi reveal" href="{U(c_url(lead[k]))}">{icon(k)}<span class="k">{esc(LENS[k][1])}</span>'
-        f'<span class="v up" data-count="{esc(pct(lead[k][k]))}">{esc(pct(lead[k][k]))}</span>'
+        f'<span class="v up" data-count="{esc(pct(lead[k][k]))}">{fig(pct(lead[k][k]))}</span>'
         f'<span class="s">{esc(lead[k]["name"])}, {lead[k][k + "_year"]}</span></a>'
         for k in lens_keys)
     th_lists = ""
@@ -2391,7 +2405,7 @@ def main():
     (OUT / "og" / "index.html").write_text(f"""<!doctype html>
 <html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="robots" content="noindex">
 <title>Share cards</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..750&family=Inter:wght@400..700&family=Noto+Sans+Thai:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..750&family=Atkinson+Hyperlegible+Next:wght@400..700&family=Noto+Sans+Thai:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer&family=Noto+Sans+Lao&family=Noto+Sans+Myanmar&text={NATIVE_GLYPHS}&display=swap">
 <link rel="stylesheet" href="{U('/assets/app.css')}?v={meta['build_id']}">
 <style>

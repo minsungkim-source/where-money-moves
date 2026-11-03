@@ -73,6 +73,8 @@
     var m = text.match(/^([^\d−+-]*)([−+-]?)([\d,]*\.?\d+)(.*)$/);
     if (!m || reduced) return;
     var pre = m[1], sign = m[2], numStr = m[3], post = m[4];
+    var digits = el.querySelector(".n");               // a display figure (build.py fig()): only its digits move
+    if (digits) { el = digits; pre = sign = post = ""; text = numStr; }
     var target = parseFloat(numStr.replace(/,/g, ""));
     var dec = (numStr.split(".")[1] || "").length, comma = numStr.indexOf(",") >= 0;
     var t0 = null, dur = 900;

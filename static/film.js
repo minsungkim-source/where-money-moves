@@ -52,7 +52,7 @@
     if (a <= 0) return;
     ctx.globalAlpha = a;
     ctx.fillStyle = C.ink;
-    ctx.font = "700 92px 'Bricolage Grotesque', Inter, sans-serif";
+    ctx.font = "700 92px 'Bricolage Grotesque', 'Atkinson Hyperlegible Next', sans-serif";
     ctx.textBaseline = "alphabetic";
     var words = F.question.split(" "), shown = Math.ceil(words.length * out3(span(t, 0.2, 2.2)));
     var line1 = words.slice(0, 5).join(" "), line2 = words.slice(5).join(" ");
@@ -72,13 +72,13 @@
       var land = T.bars + 0.35 + i * 0.42 + (c.home ? 1.0 : 0);              // the home bar waits out a silence
       var k = out3(span(t, land, land + 0.55));
       var y = BY + i * (BH + GAP);
-      ctx.fillStyle = C.muted; ctx.font = "500 30px Inter, sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      ctx.fillStyle = C.muted; ctx.font = "500 30px 'Atkinson Hyperlegible Next', sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
       ctx.fillText(c.n, BX - 28, y + BH / 2);
       ctx.fillStyle = c.home ? C.ebb : ramp(c.s);
       var w = BW * (c.s / 100) * k;
       ctx.fillRect(BX, y, w, BH);
       if (k > 0.98) {
-        ctx.fillStyle = C.ink; ctx.textAlign = "left"; ctx.font = "600 28px Inter, sans-serif";
+        ctx.fillStyle = C.ink; ctx.textAlign = "left"; ctx.font = "600 28px 'Atkinson Hyperlegible Next', sans-serif";
         ctx.fillText(Math.round(c.s), BX + w + 14, y + BH / 2);
       }
       if (c.home && t > land + 0.6) {                                          // ring the home bar
@@ -148,9 +148,9 @@
       ctx.beginPath(); ctx.moveTo(px, py);
       ctx.quadraticCurveTo((px + lx) / 2, ly - 60, lerp(px, lx - 20, grow), lerp(py, ly - 12, grow)); ctx.stroke();
       ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI * 1.7); ctx.stroke();      // an unclosed ring on the mark
-      ctx.fillStyle = C.ink; ctx.font = "700 46px 'Bricolage Grotesque', Inter, sans-serif";
+      ctx.fillStyle = C.ink; ctx.font = "700 46px 'Bricolage Grotesque', 'Atkinson Hyperlegible Next', sans-serif";
       ctx.fillText(F.notes[n[0]][0], lx, ly);
-      ctx.fillStyle = n[2]; ctx.font = "600 34px Inter, sans-serif";
+      ctx.fillStyle = n[2]; ctx.font = "600 34px 'Atkinson Hyperlegible Next', sans-serif";
       ctx.fillText(F.notes[n[0]][1], lx, ly + 48);
       ctx.globalAlpha = 1;
     });
@@ -183,14 +183,14 @@
         ctx.globalAlpha = out;
       }
       if (k > 0.97 && (p.role === "bkk" || p.role === "east")) {
-        ctx.fillStyle = C.ink; ctx.font = "600 26px Inter, sans-serif"; ctx.textAlign = "center";
+        ctx.fillStyle = C.ink; ctx.font = "600 26px 'Atkinson Hyperlegible Next', sans-serif"; ctx.textAlign = "center";
         ctx.fillText(p.n + "  #" + p.rank, x, y - hh - 18);
         ctx.textAlign = "left";
       }
     });
     if (t > T.rank) {                                                           // the axis arrives with the unit
       var a = span(t, T.rank, T.rank + 0.6) * (1 - span(t, T.close - 0.2, T.close + 0.6));
-      ctx.globalAlpha = a; ctx.fillStyle = C.muted; ctx.font = "500 24px Inter, sans-serif";
+      ctx.globalAlpha = a; ctx.fillStyle = C.muted; ctx.font = "500 24px 'Atkinson Hyperlegible Next', sans-serif";
       ctx.fillText("Momentum, 77 provinces: fastest", x0, yb + 40);
       ctx.textAlign = "right"; ctx.fillText("slowest", x1, yb + 40); ctx.textAlign = "left";
       ctx.fillRect(x0, yb + 6, x1 - x0, 2);
@@ -211,11 +211,11 @@
     ctx.beginPath(); ctx.arc(cx, cy, r + 40 + ring * 120, 0, Math.PI * 2); ctx.stroke();
     ctx.globalAlpha = a;
     ctx.fillStyle = C.paper; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "700 64px 'Bricolage Grotesque', Inter, sans-serif"; ctx.fillText(d.dep, cx, cy - 6);
-    ctx.font = "500 24px Inter, sans-serif"; ctx.fillText("deposits, a year", cx, cy + 44);
-    ctx.fillStyle = C.ink; ctx.font = "700 54px 'Bricolage Grotesque', Inter, sans-serif";
+    ctx.font = "700 64px 'Bricolage Grotesque', 'Atkinson Hyperlegible Next', sans-serif"; ctx.fillText(d.dep, cx, cy - 6);
+    ctx.font = "500 24px 'Atkinson Hyperlegible Next', sans-serif"; ctx.fillText("deposits, a year", cx, cy + 44);
+    ctx.fillStyle = C.ink; ctx.font = "700 54px 'Bricolage Grotesque', 'Atkinson Hyperlegible Next', sans-serif";
     ctx.fillText(d.n, cx, cy + 210);
-    ctx.fillStyle = C.muted; ctx.font = "500 28px Inter, sans-serif";
+    ctx.fillStyle = C.muted; ctx.font = "500 28px 'Atkinson Hyperlegible Next', sans-serif";
     ctx.fillText(d.prov + ", Thailand", cx, cy + 262);
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.globalAlpha = 1;
   }
@@ -225,8 +225,8 @@
     var a = span(t, T.end, T.end + 0.8);
     ctx.globalAlpha = a; ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = C.ink; ctx.textAlign = "center";
-    ctx.font = "700 96px 'Bricolage Grotesque', Inter, sans-serif"; ctx.fillText("Where Money Moves", W / 2, 470);
-    ctx.fillStyle = C.muted; ctx.font = "500 34px Inter, sans-serif";
+    ctx.font = "700 96px 'Bricolage Grotesque', 'Atkinson Hyperlegible Next', sans-serif"; ctx.fillText("Where Money Moves", W / 2, 470);
+    ctx.fillStyle = C.muted; ctx.font = "500 34px 'Atkinson Hyperlegible Next', sans-serif";
     ctx.fillText(F.endline, W / 2, 550);
     ctx.textAlign = "left"; ctx.globalAlpha = 1;
   }
