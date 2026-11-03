@@ -123,7 +123,11 @@ Interactive layer (`static/app.js`, progressive enhancement):
   `python build.py && node tools/film_mp4.mjs` → `dist/where-the-money-moved.mp4` (frames and sound come from the page itself)
 - **Share images**: every page has its own 1200×630 card (place, rank, lens values, a locator map), photographed at
   deploy time from the template build.py writes to `site/og/`: `node tools/og_images.mjs` (≈25 s for 517 pages, not committed).
-  Both tools share `tools/chrome.mjs` (static server + headless Chrome over the DevTools protocol, no packages)
+- **Monthly clip** `/clip/` (`static/clip.js`): 15 seconds, 1080×1920, no sound, for LINE / Instagram / TikTok stories:
+  the five Thai provinces fastest on deposits in the newest Bank of Thailand month, Thailand as a whole, and the slowest.
+  Rebuilt from the data every build; rendered at deploy by `node tools/clip_mp4.mjs` → `site/clip/where-money-moves-YYYY-MM.mp4`
+  (≈25 s; the page shows "Download the mp4" only once the file exists)
+  All three tools share `tools/chrome.mjs` (static server + headless Chrome over the DevTools protocol, no packages)
 
 Design notes live at the top of `static/app.css`. Project skills used while building are in `.claude/skills/`
 (frontend-design, accessibility, seo, performance, programmatic-seo), each with its licence and `SOURCE.md`.

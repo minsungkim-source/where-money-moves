@@ -2140,6 +2140,7 @@ def main():
     <span class="film-bar" aria-hidden="true"><i></i></span>
   </div>
 </section>
+<p class="more"><a href="{U('/clip/')}">This month in fifteen seconds: a vertical clip for sharing</a></p>
 <section class="prose reveal"><h2>Transcript</h2><ol class="transcript">{transcript}</ol></section>
 <section class="prose reveal"><h2>How it was made</h2>
 <p>Directed with the method of <a href="https://github.com/lemomo-ai/lemo-opuscar">Lemo-Opuscar</a> (MIT) in its Data Storytelling grammar: the chart is the film, every mark is a real number, transitions are chart operations, and the sound is the data, each mark a pitch from its value, with two silences before the turns. Drawn on a canvas by a single function of time, so it can also be rendered frame by frame to video.</p>
@@ -2150,6 +2151,48 @@ def main():
     write("/film/", page(U("/film/"), "Where the money moved: a 43-second film | Where Money Moves",
                          first_sentences(f"{home['name']} ranks {ordinal(home['rank'])} of 11 Southeast Asian countries on momentum, but inside it money is moving. A 43-second data film drawn in code."),
                          body, meta, crumbs=[("Southeast Asia", "/"), ("Film", "/film/")]))
+
+    # ── CLIP: fifteen seconds, 9:16, for sharing (static/clip.js). The newest monthly series is the Bank of Thailand's,
+    # so the clip is the month's five fastest provinces on deposits, the national figure and the slowest; it is
+    # re-written from the data on every build and rendered to mp4 at deploy (tools/clip_mp4.mjs).
+    keys = [k for k in T if k in th_mini]
+    on_money = sorted((k for k in keys if T[k].get("money") is not None), key=lambda k: -T[k]["money"])
+    nat_money = prov_money(D).get(latest)
+    low = T[on_money[-1]]
+    clip = {
+        "duration": 15.0, "month": month_label(latest), "file": f"where-money-moves-{latest}.mp4",
+        "site": (SITE_URL + U("/")).split("://", 1)[1].rstrip("/"),
+        "title": ["Where Thailand's", "bank deposits", "grew fastest"],
+        "sub": [f"Year to {month_label(latest)}", f"all {len(T)} provinces" if len(on_money) == len(T)
+                else f"{len(on_money)} of {len(T)} provinces reporting"], "n": len(on_money),
+        "top": [{"n": T[k]["name"], "v": T[k]["money"], "l": pct(T[k]["money"]), "i": keys.index(k)} for k in on_money[:5]],
+        "nat": None if nat_money is None else {"v": nat_money, "l": pct(nat_money)},
+        "low": {"n": low["name"], "v": low["money"], "l": pct(low["money"]), "i": keys.index(on_money[-1])},
+        "thai": {"viewBox": [round(TW), round(TH)], "provinces": [th_mini[k] for k in keys]},
+    }
+    clip_lines = ([f"Where Thailand's bank deposits grew fastest, year to {month_label(latest)}."]
+                  + [f"{i}. {c['n']} {c['l']}" for i, c in enumerate(clip["top"], 1)]
+                  + ([f"Thailand as a whole: {clip['nat']['l']}."] if clip["nat"] else [])
+                  + [f"Slowest of {len(on_money)}: {low['name']} {clip['low']['l']}.", f"Every province, every month: {clip['site']}"])
+    body = f"""
+<section class="hero"><h1>This month in fifteen seconds</h1>
+<p class="lede">A vertical clip for sharing: the Thai provinces where bank deposits grew fastest in the year to {esc(month_label(latest))}. It is drawn from the newest Bank of Thailand table each time the site is built, and the mp4 is rendered with it.</p></section>
+<section id="clip" class="clip">
+  <div class="clip-stage"><canvas width="1080" height="1920" role="img" aria-label="Animated ranking of Thai provinces by deposit growth. The list beside it has every line."></canvas></div>
+  <div class="clip-side">
+    <div class="film-controls"><button type="button" class="btn clip-play">Play</button>
+      <a class="btn ghost clip-dl" href="{esc(clip['file'])}" download hidden>Download the mp4</a></div>
+    <span class="film-bar" aria-hidden="true"><i></i></span>
+    <h2>What it shows</h2><ol class="transcript">{"".join(f"<li>{esc(x)}</li>" for x in clip_lines)}</ol>
+    <p class="note">1080 × 1920, no sound, made for LINE, Instagram, TikTok and Facebook stories. Data: Bank of Thailand district table, {esc(month_label(latest))}; deposits year on year over the districts reported in both months.</p>
+  </div>
+</section>
+<script type="application/json" id="clip-data">{json.dumps(clip, ensure_ascii=False)}</script>
+<script src="{U('/assets/clip.js')}?v={meta['build_id']}" defer></script>
+"""
+    write("/clip/", page(U("/clip/"), f"Thailand's fastest-growing deposits, {month_label(latest)}: a 15-second clip | Where Money Moves",
+                         first_sentences(clip_lines[0] + " " + clip_lines[1] + ". A 15-second vertical clip, rebuilt every month."),
+                         body, meta, crumbs=[("Southeast Asia", "/"), ("Film", "/film/"), ("Monthly clip", "/clip/")]))
 
     # ── RANKINGS
     rk_index = []
@@ -2502,7 +2545,8 @@ window.card = async (i) => {{
            + [{"n": d["name"], "a": f"{h['name']}, Philippines", "u": U(h_url(h)) + "#places", "k": "City"}
               for h in H.values() for d in h["parts"] if d["name"] != h["name"]]
            + [{"n": t, "a": "", "u": U(p), "k": "Ranking"} for p, t, _ in rk_index]
-           + [{"n": "Where the money moved", "a": "a 43-second film", "u": U("/film/"), "k": "Film"}])
+           + [{"n": "Where the money moved", "a": "a 43-second film", "u": U("/film/"), "k": "Film"},
+              {"n": "This month in fifteen seconds", "a": "a vertical clip", "u": U("/clip/"), "k": "Film"}])
     (OUT / "assets" / "search.json").write_text(json.dumps(idx, ensure_ascii=False, separators=(",", ":")))
     (OUT / "manifest.webmanifest").write_text(json.dumps({
         "name": "Where Money Moves", "short_name": "Money Moves", "lang": "en", "start_url": U("/?source=pwa"),

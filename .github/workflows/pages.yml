@@ -36,6 +36,13 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}
         run: node tools/og_images.mjs
+      - name: Monthly clip, 1080×1920 mp4 (the page offers the download only if it exists)
+        continue-on-error: true
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}
+        run: |
+          command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          node tools/clip_mp4.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

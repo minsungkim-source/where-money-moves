@@ -452,6 +452,14 @@ dialog#cmdk[open] .cmdk-box { animation: pop .18s var(--ease); }
 .film-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
 .film-cap { position: absolute; left: 7%; right: 7%; bottom: 5%; margin: 0; padding-top: 10px; border-top: 1px solid var(--line);
   font: 500 clamp(14px, 2.1vw, 26px)/1.35 var(--body); color: var(--ink); min-height: 1.4em; }
+/* the monthly clip: a phone-sized stage beside its transcript */
+.clip { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 40px; align-items: start; margin-top: -24px; }
+.clip-stage { border-radius: var(--r-3); overflow: hidden; border: 1px solid var(--line); background: var(--paper); }
+.clip-stage canvas { display: block; width: 100%; height: auto; aspect-ratio: 9 / 16; }
+.clip-side { display: grid; gap: 14px; max-width: 60ch; }
+.clip-side h2 { font-size: var(--t-xl); margin-top: 12px; }
+.clip-side .film-bar { display: block; flex: none; }
+@media (max-width: 760px) { .clip { grid-template-columns: 1fr; } .clip-stage { max-width: 360px; } }
 .film-controls { display: flex; align-items: center; gap: 16px; }
 .film-mute { display: inline-flex; gap: 6px; align-items: center; font-size: var(--t-m); color: var(--muted); }
 .film-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }

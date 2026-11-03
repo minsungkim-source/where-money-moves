@@ -15,6 +15,7 @@ self.addEventListener("activate", function (e) {
 self.addEventListener("fetch", function (e) {
   var req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+  if (/\.mp4$/.test(new URL(req.url).pathname)) return;          // the monthly clip: straight from the network
   if (req.mode === "navigate") {
     e.respondWith(fetch(req).then(function (res) {
       var copy = res.clone();
