@@ -191,6 +191,7 @@
       var cur = $('[aria-pressed="true"]', tabs);
       if (cur && tabs.scrollWidth > tabs.clientWidth) cur.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduced ? "auto" : "smooth" });
       if (map) map.dataset.lens = lens;
+      $$(".legend", scope).forEach(function (l) { l.dataset.lens = lens; });
       var list = $(".sea-list", scope);
       if (list) flip(list, lens);
       $$(".tlist", scope).forEach(function (t) { t.hidden = t.dataset.for !== lens; });
@@ -260,7 +261,7 @@
   });
 
   // ── map tooltip (pointer) and tap sheet (touch)
-  var tip = $(".tip"), canHover = matchMedia("(hover: hover)").matches;
+  var tip = $(".tip"), canHover = matchMedia("(hover: hover)").matches, SVGNS = "http://www.w3.org/2000/svg";
   function tipHTML(d, lens) {
     var rows = [["Momentum", d.s == null ? "–" : d.s, "score"], ["People", d.people, "people"], ["Jobs", d.jobs, "jobs"],
                 ["Businesses", d.biz, "biz"], ["Money", d.money, "money"]];
@@ -286,6 +287,42 @@
       sheet.className = "sheet"; sheet.hidden = true;
       frame.insertAdjacentElement("afterend", sheet);
     }
+    // one ring above every shape, so the place under the pointer or the keyboard is never half covered by its neighbours
+    var ring = doc.createElementNS(SVGNS, "g"), ringOf = null;
+    ring.setAttribute("class", "ring"); ring.setAttribute("aria-hidden", "true");
+    function mark(a, kb) {
+      ring.classList.toggle("kb", !!kb);
+      if (a === ringOf) return;
+      ringOf = a;
+      if (!a) { ring.remove(); return; }
+      var parts = [];
+      ["halo", "edge"].forEach(function (c) {
+        $$("path, circle", a).forEach(function (n) {
+          var m = doc.createElementNS(SVGNS, n.tagName);
+          ["d", "cx", "cy", "r"].forEach(function (k) { if (n.hasAttribute(k)) m.setAttribute(k, n.getAttribute(k)); });
+          m.setAttribute("class", c); parts.push(m);
+        });
+      });
+      ring.replaceChildren.apply(ring, parts);
+      map.appendChild(ring);
+    }
+    units.addEventListener("pointerover", function (e) {
+      var a = e.target.closest("a[data-tip]");
+      if (a && canHover) mark(a);
+    });
+    // keyboard: the ring turns focus-blue and the tooltip sits above the shape, as if pointed at
+    units.addEventListener("focusin", function (e) {
+      var a = e.target.closest("a[data-tip]");
+      if (!a || !a.matches(":focus-visible")) return;
+      mark(a, true);
+      if (!tip) return;
+      var r = a.getBoundingClientRect();
+      tip.replaceChildren(tipHTML(JSON.parse(a.dataset.tip), map.dataset.lens));
+      tip.hidden = false;
+      tip.style.left = Math.min(innerWidth - 110, Math.max(110, r.left + r.width / 2)) + "px";
+      tip.style.top = Math.max(r.top, 8) + "px";
+    });
+    units.addEventListener("focusout", function () { mark(null); if (tip) tip.hidden = true; });
     units.addEventListener("pointermove", function (e) {
       if (!canHover || !tip) return;
       var a = e.target.closest("a[data-tip]");
@@ -295,7 +332,11 @@
       var x = Math.min(innerWidth - 110, Math.max(110, e.clientX));
       tip.style.left = x + "px"; tip.style.top = e.clientY + "px";
     });
-    units.addEventListener("pointerleave", function () { if (tip) tip.hidden = true; });
+    units.addEventListener("pointerleave", function () {
+      if (tip) tip.hidden = true;
+      var f = doc.activeElement && doc.activeElement.closest && doc.activeElement.closest("a[data-tip]");
+      mark(f && units.contains(f) && f.matches(":focus-visible") ? f : null, true);
+    });
     units.addEventListener("click", function (e) {
       var a = e.target.closest("a[data-tip]");
       if (!a || canHover || !sheet) return;
@@ -307,7 +348,7 @@
       sheet.href = a.getAttribute("href"); sheet.dataset.cur = a.getAttribute("href");
       sheet.hidden = false;
       $$("a.cur", units).forEach(function (x) { x.classList.remove("cur"); });
-      a.classList.add("cur");
+      a.classList.add("cur"); mark(a);
     });
   });
 

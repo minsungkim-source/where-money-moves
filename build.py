@@ -55,8 +55,15 @@ ICON = {  # 24px stroke icons, drawn for this site
 SPIKE = 0.5
 ON = ' class="on"'      # the highlighted place on a locator map (quoted: an unquoted on/> reads as 'on/')
 # "no data" fill. Defined once per page in the shell (not per map), so pages with several maps have one #hatch.
+# "Shrinking" is a texture on top of the colour, because colour is rank and a place can rank high while it shrinks
+# (most Thai provinces lose people). One pattern per ramp step: the step's own fill, cut by thin paper-coloured lines
+# at the other diagonal from #hatch, so stripes never read as "no data".
 HATCH = ('<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
-         '<rect width="5" height="5" class="hb"/><line x1="0" y1="0" x2="0" y2="5" class="hl"/></pattern></defs>')
+         '<rect width="5" height="5" class="hb"/><line x1="0" y1="0" x2="0" y2="5" class="hl"/></pattern>'
+         + "".join(f'<pattern id="ebb{b}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">'
+                   f'<rect width="4" height="4" style="fill:var(--s{b})"/><line x1="0" y1="0" x2="0" y2="4" class="el"/></pattern>'
+                   for b in range(1, 8))
+         + '</defs>')
 
 
 
@@ -861,7 +868,8 @@ def lens_tabs(include_score=True, default="score", label="Lens"):
 
 def legend(layer):
     sw = "".join(f'<i class="s{i}"></i>' for i in range(1, 8))
-    return (f'<div class="legend"><span>Slower</span><span class="ramp">{sw}</span><span>Faster</span>'
+    return (f'<div class="legend" data-lens="score"><span>Slower</span><span class="ramp">{sw}</span><span>Faster</span>'
+            f'<span class="dn"><i></i>Striped: shrinking</span>'
             f'<span class="nd"><i></i>No data</span><span class="note">Colour is rank within {esc(layer)}</span></div>')
 
 
@@ -872,6 +880,8 @@ def lens_attrs(r, keys):
         a.append(f'data-p-score="{r["score"]:.1f}"')
     for k in keys:
         a.append(f'data-b-{k}="{bin7(r.get(k + "_pct"))}"')
+        if r.get(k) is not None and r[k] < 0:
+            a.append(f"data-d-{k}")
         if r.get(k + "_pct") is not None:
             a.append(f'data-p-{k}="{r[k + "_pct"]:.1f}"')
     return " ".join(a)
@@ -1054,6 +1064,8 @@ def main():
         for b in range(1, 8):
             rules.append(f'.map[data-lens="{lens}"] [data-b-{lens}="{b}"]{{fill:var(--s{b})}}')
         rules.append(f'.map[data-lens="{lens}"] [data-b-{lens}="n"]{{fill:url(#hatch)}}')
+        if lens != "score":                     # Momentum is a rank, it has no sign
+            rules += [f'.map[data-lens="{lens}"] [data-b-{lens}="{b}"][data-d-{lens}]{{fill:url(#ebb{b})}}' for b in range(1, 8)]
     (OUT / "assets" / "app.css").write_text((STATIC / "app.css").read_text() + "\n/* generated */\n" + "\n".join(rules) + "\n")
 
     pages = []

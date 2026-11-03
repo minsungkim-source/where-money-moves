@@ -138,7 +138,15 @@ main > * { min-width: 0; }
 .map .units path, .map .units .dot { fill: var(--s1); stroke: var(--paper); stroke-width: .6; stroke-linejoin: round; transition: fill .45s var(--ease); }
 .map.th .units path { stroke-width: .5; }
 .map .units a { cursor: pointer; outline: none; }
-.map .units a:hover path, .map .units a:focus-visible path, .map .units a.cur path, .map .units a:hover .dot { stroke: var(--ink); stroke-width: 1.4; }
+/* hover, tap and keyboard focus draw one ring on top of the map (app.js copies the shape into .ring): a stroke on the
+   shape itself is half hidden by the neighbours painted after it, and Vietnam's and the Philippines' fills have none */
+.map .ring { pointer-events: none; }
+.map .ring * { fill: none !important; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.map .ring .halo { stroke: var(--paper); stroke-width: 4.5px; }
+.map .ring .edge { stroke: var(--ink); stroke-width: 2px; }
+.map .ring.kb .halo { stroke-width: 6px; }
+.map .ring.kb .edge { stroke: var(--focus); stroke-width: 3px; }
+.el { stroke: var(--paper); stroke-width: 1.1; opacity: .75; }   /* the stripes of the shrinking patterns (#ebb1…7) */
 .map .units .on path { stroke: var(--ink); stroke-width: 1.6; }
 .map .labels text { font: 600 11px var(--body); fill: var(--ink); paint-order: stroke; stroke: var(--sea); stroke-width: 3px; pointer-events: none; opacity: .8; }
 .map .coords text { font: 500 9px var(--body); fill: var(--muted); opacity: .8; }
@@ -150,8 +158,6 @@ main > * { min-width: 0; }
 .map.mini { width: 132px; height: auto; max-height: 240px; }
 /* Vietnam: merged provinces are several old shapes in one path, so fills carry no stroke; borders are their own layers */
 .map.vn .units path, .map.ph .units path { stroke: none; }
-.map.vn .units a:hover path, .map.vn .units a:focus-visible path, .map.vn .units a.cur path,
-.map.ph .units a:hover path, .map.ph .units a:focus-visible path, .map.ph .units a.cur path { stroke: none; filter: brightness(.86) saturate(1.2); }
 .map.vn .outline, .map.ph .outline { fill: none; stroke: var(--paper); stroke-width: .9; stroke-linejoin: round; pointer-events: none; }
 .map.ph .outline { stroke-width: .6; }
 .map.vn .former { fill: none; stroke: var(--paper); stroke-width: .7; stroke-dasharray: 2 2.4; opacity: .9; pointer-events: none; }
@@ -205,6 +211,9 @@ main > * { min-width: 0; }
 .legend .s5 { background: var(--s5); } .legend .s6 { background: var(--s6); } .legend .s7 { background: var(--s7); }
 .legend .nd { display: inline-flex; gap: 6px; align-items: center; }
 .legend .nd i { width: 14px; height: 8px; border-radius: 2px; background: repeating-linear-gradient(45deg, var(--null) 0 2px, var(--null-line) 2px 3px); }
+.legend .dn { display: inline-flex; gap: 6px; align-items: center; }
+.legend .dn i { width: 14px; height: 8px; border-radius: 2px; background: repeating-linear-gradient(-45deg, var(--s4) 0 2px, color-mix(in srgb, var(--paper) 75%, var(--s4)) 2px 3px); }
+.legend[data-lens="score"] .dn { display: none; }               /* Momentum is a rank: nothing to stripe */
 .legend .note { margin-left: auto; }
 
 /* ranked lists */
