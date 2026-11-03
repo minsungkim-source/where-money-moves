@@ -72,6 +72,13 @@ Ship small, then widen. Top to bottom.
 - [ ] OSM points of interest, year on year (Overpass attic), as a Businesses proxy outside Thailand
 - [ ] Label every proxy on the page, next to the number
 
+## Sharing
+
+- [x] Share image per page (1200×630), rendered at deploy (2026-11-02)
+- [x] Monthly 15-second vertical clip `/clip/`, rendered to mp4 at deploy (2026-11-03)
+- [ ] One film per country (Vietnam, Malaysia, the Philippines), each in its own Lemo-Opuscar style
+- [ ] Post the clip automatically (LINE OA / socials) — needs the owner's accounts and tokens
+
 ## Later
 
 - [ ] Indonesia (BPS, 38 provinces / 514 kab/kota; API key needed)
